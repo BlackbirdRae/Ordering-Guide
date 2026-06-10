@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Par Ordering Guide</title>
+<style>
+:root{
+  --primary:#1a3a5c;--accent:#e8a020;--success:#2e7d32;
+  --danger:#c62828;--warn:#f57c00;--bg:#f0f2f7;
+  --card:#fff;--border:#dde2ec;--text:#1c1c1e;--muted:#6b7280;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+.header{background:var(--primary);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.header h1{font-size:17px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.header-controls{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
+.header select,.header input[type=date]{padding:5px 9px;border-radius:6px;border:none;font-size:13px;background:rgba(255,255,255,.15);color:#fff;cursor:pointer}
+.header select option{background:var(--primary)}
+.badge{background:var(--accent);color:#1a1a1a;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap}
+.tabs{display:flex;background:var(--primary);padding:0 14px;gap:2px;border-bottom:3px solid var(--accent);position:sticky;top:46px;z-index:190;flex-wrap:wrap}
+.tab-btn{padding:8px 13px;border:none;background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);cursor:pointer;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;transition:all .2s;white-space:nowrap}
+.tab-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+.tab-btn.active{background:var(--accent);color:#1a1a1a}
+.tab-btn .cnt{font-size:11px;margin-left:3px;opacity:.85}
+.tab-divider{width:1px;background:rgba(255,255,255,.2);margin:7px 3px}
+.summary{background:var(--primary);padding:8px 20px;display:flex;gap:24px;flex-wrap:wrap;font-size:13px;border-bottom:1px solid rgba(255,255,255,.1)}
+.s-stat .lbl{opacity:.65;font-size:10px;text-transform:uppercase;letter-spacing:.5px;display:block}
+.s-stat .val{font-weight:700;font-size:15px;color:#fff}
+.s-stat .val.warn{color:var(--accent)}
+.toolbar{background:#fff;padding:9px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.toolbar-right{margin-left:auto;display:flex;gap:7px}
+.btn{padding:6px 13px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:#254d7a}
+.btn-accent{background:var(--accent);color:#1a1a1a}.btn-accent:hover{background:#d4911c}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}.btn-ghost:hover{background:var(--bg);color:var(--text)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.filter-sel{padding:5px 9px;border-radius:6px;border:1px solid var(--border);font-size:13px;background:#fff;cursor:pointer}
+.search-box{padding:5px 11px;border-radius:6px;border:1px solid var(--border);font-size:13px;width:190px}
+.search-box:focus,.filter-sel:focus{outline:2px solid var(--accent);border-color:transparent}
+.main{padding:16px 20px;max-width:1400px}
+.vendor-section{margin-bottom:20px;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.08);border:1px solid var(--border)}
+.vendor-header{padding:12px 18px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;color:#fff}
+.vendor-header:hover{filter:brightness(1.1)}
+.vendor-name{font-weight:700;font-size:15px;letter-spacing:.2px}
+.vendor-badge{background:rgba(255,255,255,.2);padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.vendor-order-badge{background:var(--accent);color:#1a1a1a;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700}
+.vendor-collapse{margin-left:auto;font-size:11px;transition:transform .2s}
+.vendor-section.collapsed .vendor-collapse{transform:rotate(-90deg)}
+.vendor-body{display:block}
+.vendor-section.collapsed .vendor-body{display:none}
+.cat-section{border-top:1px solid var(--border)}
+.cat-header{background:#f4f6fb;padding:7px 18px;display:flex;align-items:center;gap:8px;cursor:pointer;border-bottom:1px solid var(--border);user-select:none}
+.cat-header:hover{background:#eef0f8}
+.cat-title{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.cat-badge{background:#e8ecf5;color:var(--muted);padding:1px 8px;border-radius:8px;font-size:10px;font-weight:600}
+.cat-order-badge{background:#fff3d6;color:var(--warn);padding:1px 8px;border-radius:8px;font-size:10px;font-weight:700}
+.cat-collapse-icon{margin-left:auto;font-size:10px;color:var(--muted);transition:transform .2s}
+.cat-section.cat-collapsed .cat-collapse-icon{transform:rotate(-90deg)}
+.cat-section.cat-collapsed .cat-body{display:none}
+.items-table{width:100%;border-collapse:collapse}
+.items-table thead{background:#fafbfe}
+.items-table th{padding:7px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+.items-table th.c{text-align:center}
+.items-table td{padding:7px 12px;border-bottom:1px solid #f0f3fa;vertical-align:middle}
+.items-table tr:last-child td{border-bottom:none}
+.items-table tr:hover td{background:#fafbff}
+.items-table tr.inactive{opacity:.38;background:#fafafa}
+.items-table tr.need-order td{background:#fff8e8}
+.items-table tr.need-order td.ord-cell{color:var(--warn);font-weight:700}
+.par-inp,.oh-inp{width:58px;padding:4px 7px;border-radius:5px;border:1px solid var(--border);font-size:13px;text-align:center;transition:border .15s}
+.par-inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(232,160,32,.18)}
+.oh-inp{border-color:#93c5fd;background:#eff6ff}
+.oh-inp:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.18)}
+.ord-cell{text-align:center;font-size:14px;font-weight:700}
+.ord-cell.zero{color:#d1d5db}.ord-cell.pos{color:var(--warn)}
+.toggle{position:relative;display:inline-block;width:34px;height:18px}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;transition:.25s;border-radius:18px}
+.slider:before{position:absolute;content:"";height:12px;width:12px;left:3px;bottom:3px;background:#fff;transition:.25s;border-radius:50%}
+input:checked+.slider{background:var(--success)}
+input:checked+.slider:before{transform:translateX(16px)}
+.del-btn{background:none;border:none;color:#d1d5db;cursor:pointer;font-size:15px;padding:2px 5px;border-radius:4px;transition:all .15s}
+.del-btn:hover{color:var(--danger);background:#fef2f2}
+.iname{font-weight:500;line-height:1.3}
+.ipkg{font-size:11px;color:var(--muted);margin-top:1px}
+.info-page{padding:20px}
+.info-page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.info-page-header h2{font-size:18px;font-weight:700;color:var(--primary)}
+.info-page-header p{font-size:13px;color:var(--muted);margin-top:3px}
+.info-card{background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.info-card-header{padding:10px 16px;display:flex;align-items:center;gap:10px;color:#fff}
+.info-card-icon{font-size:17px}.info-card-name{font-weight:700;font-size:14px}
+.info-card-body{padding:0}
+.info-table{width:100%;border-collapse:collapse}
+.info-table th{padding:8px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:#fafbfe;white-space:nowrap}
+.info-table td{padding:6px 10px;border-bottom:1px solid #f0f3fa;vertical-align:middle}
+.info-table tr:last-child td{border-bottom:none}
+.info-table tr:hover td{background:#fafbff}
+.inf{width:100%;padding:5px 8px;border:1px solid transparent;border-radius:5px;font-size:13px;background:transparent;transition:all .15s;font-family:inherit}
+.inf:hover{border-color:var(--border);background:#fafbff}
+.inf:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 2px rgba(232,160,32,.15)}
+.inf-phone{width:160px}.inf-email{width:220px}.inf-notes{width:260px}
+.inf-url{width:200px}.inf-user{width:180px}.inf-pass{width:180px;font-family:monospace}
+.inf-pass.hidden{color:transparent;text-shadow:0 0 8px rgba(0,0,0,.6);letter-spacing:2px}
+.pw-wrap{display:flex;align-items:center;gap:4px}
+.eye-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 4px;border-radius:4px;transition:all .15s;line-height:1}
+.eye-btn:hover{color:var(--primary);background:#f0f3fa}
+.add-row-btn{padding:7px 14px;border:1px dashed var(--border);border-top:none;background:#fafbfe;color:var(--muted);cursor:pointer;font-size:12px;font-weight:600;width:100%;text-align:left;transition:all .15s;display:flex;align-items:center;gap:6px}
+.add-row-btn:hover{background:#f0f3fa;color:var(--primary);border-color:var(--primary)}
+
+/* SCHEDULE PAGE */
+.sched-page{padding:20px}
+.sched-page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.sched-page-header h2{font-size:18px;font-weight:700;color:var(--primary)}
+.sched-page-header p{font-size:13px;color:var(--muted);margin-top:3px}
+.sched-card{background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.sched-card-header{padding:10px 16px;display:flex;align-items:center;gap:10px;color:#fff}
+.sched-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--border)}
+.sched-field{padding:10px 16px;border-bottom:1px solid var(--border);border-right:1px solid var(--border)}
+.sched-field:nth-child(even){border-right:none}
+.sched-field.full-width{grid-column:1/-1;border-right:none}
+.sched-field label{display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.sched-inp{width:100%;padding:5px 8px;border:1px solid transparent;border-radius:5px;font-size:13px;background:transparent;transition:all .15s;font-family:inherit}
+.sched-inp:hover{border-color:var(--border);background:#fafbff}
+.sched-inp:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 2px rgba(232,160,32,.15)}
+.sched-inp.notes-inp{resize:vertical;min-height:52px}
+.day-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.day-pill{padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:#f5f6fa;color:var(--muted);transition:all .15s;user-select:none}
+.day-pill.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.min-inp{width:140px}
+@media(max-width:600px){.sched-grid{grid-template-columns:1fr}.sched-field{border-right:none}.sched-field:nth-child(even){border-right:none}}
+
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;padding:24px;width:460px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal h2{font-size:17px;font-weight:700;margin-bottom:16px;color:var(--primary)}
+.fg{margin-bottom:13px}
+.fg label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.fg input,.fg select{width:100%;padding:7px 11px;border-radius:6px;border:1px solid var(--border);font-size:14px}
+.fg input:focus,.fg select:focus{outline:2px solid var(--accent)}
+.modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:18px}
+.toast{position:fixed;bottom:20px;right:20px;background:#1a1a1a;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.empty{text-align:center;padding:36px;color:var(--muted)}
+@media print{
+  .header,.tabs,.summary,.toolbar,.overlay,.del-btn,.toggle,.btn,.toast,.eye-btn,.add-row-btn{display:none!important}
+  body{background:#fff;font-size:11px}
+  .main,.info-page,.sched-page{padding:0}
+  .vendor-section{break-inside:avoid;margin-bottom:10px}
+  .items-table tr.inactive{display:none}
+  .par-inp,.oh-inp{border:none;background:none}
+  .inf,.sched-inp{border:none!important;background:none!important;box-shadow:none!important}
+  .inf-pass.hidden{color:inherit!important;text-shadow:none!important;letter-spacing:normal!important}
+  .print-hdr{display:block!important;padding:8px 0;border-bottom:2px solid #1a3a5c;margin-bottom:12px;font-size:12px}
+  .sched-card{break-inside:avoid}
+  .day-pill{border:1px solid #ccc}
+}
+.print-hdr{display:none}
+@media(max-width:600px){
+  .main{padding:10px}.info-page{padding:10px}.sched-page{padding:10px}
+  .items-table th:nth-child(3),.items-table td:nth-child(3){display:none}
+  .sched-grid{grid-template-columns:1fr}
+  .sched-field{border-right:none}
+}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<div class="header">
+  <h1>📋 Par Ordering Guide</h1>
+  <div class="header-controls">
+    <select id="locSel" onchange="switchLoc(this.value)">
+      <option value="CMP">Campbell</option>
+      <option value="WG">Willow Glen</option>
+      <option value="BV">Blossom Valley</option>
+      <option value="CPT">Cupertino</option>
+    </select>
+    <input type="date" id="orderDate" onchange="saveDate()">
+    <span class="badge" id="savedBadge">Loading…</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('regular')" id="tab-regular">Regular Orders <span class="cnt" id="cnt-regular"></span></button>
+  <button class="tab-btn" onclick="switchTab('weekend')" id="tab-weekend">🌟 Weekend Special <span class="cnt" id="cnt-weekend"></span></button>
+  <button class="tab-btn" onclick="switchTab('premium')" id="tab-premium">✨ Premium Special <span class="cnt" id="cnt-premium"></span></button>
+  <div class="tab-divider"></div>
+  <button class="tab-btn" onclick="switchTab('contacts')" id="tab-contacts">📞 Rep Contacts</button>
+  <button class="tab-btn" onclick="switchTab('logins')" id="tab-logins">🔐 Vendor Logins</button>
+  <button class="tab-btn" onclick="switchTab('schedules')" id="tab-schedules">📅 Schedules & Minimums</button>
+</div>
+
+<div class="summary" id="summaryBar">
+  <div class="s-stat"><span class="lbl">Items to Order</span><span class="val warn" id="s-order">0</span></div>
+  <div class="s-stat"><span class="lbl">Active Items</span><span class="val" id="s-active">0</span></div>
+  <div class="s-stat"><span class="lbl">On Hand Entered</span><span class="val" id="s-entered">0</span></div>
+  <div class="s-stat"><span class="lbl">Location</span><span class="val" id="s-loc">Campbell</span></div>
+</div>
+
+<div class="toolbar" id="orderToolbar">
+  <select class="filter-sel" id="vendorFilter" onchange="renderItems()"><option value="">All Vendors</option></select>
+  <select class="filter-sel" id="catFilter" onchange="renderItems()"><option value="">All Categories</option></select>
+  <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search items…" oninput="renderItems()">
+  <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+    <input type="checkbox" id="showInactive" onchange="renderItems()"> Show inactive
+  </label>
+  <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+    <input type="checkbox" id="showOrderOnly" onchange="renderItems()"> To-order only
+  </label>
+  <div class="toolbar-right">
+    <button class="btn btn-ghost btn-sm" onclick="clearOH()">🗑 Clear On Hand</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+    <button class="btn btn-accent" onclick="openAdd()">+ Add Item</button>
+  </div>
+</div>
+
+<div class="print-hdr" id="printHdr"></div>
+<div id="mainContent"></div>
+
+<!-- ADD ITEM MODAL -->
+<div class="overlay" id="addModal">
+  <div class="modal">
+    <h2>Add New Item</h2>
+    <div class="fg"><label>Item Name *</label><input type="text" id="nName" placeholder="e.g. Vodka - Tito's 1L"></div>
+    <div class="fg"><label>Vendor *</label>
+      <select id="nVendor">
+        <option value="Southern Glazer's Wine &amp; Spirits">Southern Glazer's Wine &amp; Spirits</option>
+        <option value="Golden Brands">Golden Brands</option>
+        <option value="Classic Wines of California">Classic Wines of California</option>
+        <option value="Breakthru Beverage">Breakthru Beverage</option>
+        <option value="Chef's Choice">Chef's Choice</option>
+        <option value="Northern California Distributors">Northern California Distributors</option>
+        <option value="Pepsi">Pepsi</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="fg"><label>Category</label>
+      <select id="nCat">
+        <option value="LIQUOR">LIQUOR</option><option value="BEER">BEER</option>
+        <option value="WINE">WINE</option><option value="BEVERAGES">BEVERAGES</option>
+        <option value="BAR SUPPLIES">BAR SUPPLIES</option><option value="OTHER">OTHER</option>
+      </select>
+    </div>
+    <div class="fg"><label>Packaging / Unit</label><input type="text" id="nPkg" placeholder="e.g. Case/12/1L Btl"></div>
+    <div class="fg"><label>Add to Tab</label>
+      <select id="nTab">
+        <option value="regular">Regular Orders</option>
+        <option value="weekend">Weekend Special</option>
+        <option value="premium">Premium Special</option>
+      </select>
+    </div>
+    <div class="fg"><label>Par Level</label><input type="number" id="nPar" min="0" placeholder="0"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAdd()">Cancel</button>
+      <button class="btn btn-primary" onclick="addItem()">Add Item</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_ITEMS = [{"id":1,"vendor":"Breakthru Beverage","category":"LIQUOR","name":"Tequila - Gran Centenario (anejo) 750ml","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":2,"vendor":"Breakthru Beverage","category":"LIQUOR","name":"Tequila - Gran Centenario (plata) 750ml","packaging":"Case/12/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":3,"vendor":"Breakthru Beverage","category":"LIQUOR","name":"Tequila - Gran Centenario (rep) 1L","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":4,"vendor":"Breakthru Beverage","category":"LIQUOR","name":"Tequila - Gran Centenario (plata) 1L","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":5,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - 21 Seeds Valencia Orange (750ML)","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":6,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Rum - Bacardi 1L","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":7,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Gin - Bartons","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":8,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Vodka - Barton","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":9,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Vodka - Belvedere Organic","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":10,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Vodka - Belvedere 750ML","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":11,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Cabo Wabo (Rep)","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":12,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Rum - Captain Morgan Spiced","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":13,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Casamigos (Blanco)","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":14,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Casamigos (Rep)","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":15,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Liquor - Cointreau","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":16,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Cognac - Courvoisier (1L)","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":17,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Vodka - Deep Eddy Lemon","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":18,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Don Julio (anejo)","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":19,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Don Julio (blanco)","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":20,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Don Julio (rep)","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":21,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Dulce Vida Grapefruit","packaging":"750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":22,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - El Toro Gold","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":23,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Drinks - Fever Tree Sparkling Grapefruit 500ML","packaging":"Case/8/500ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":24,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Liquor - Franzia Burgundy Wine 5L","packaging":"Case/4/5L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":25,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Vodka - Gilbey's","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":26,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Liquor - Grand Marnier","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":27,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Vodka - Grey Goose","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":28,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Cognac - Hennessy","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":29,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Liquor - Jacques Bonet Brandy","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":30,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Vodka - Ketel One","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":31,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Vodka - Ketel Botanical Cucumber","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":32,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Whiskey - Knob Creek Bourbon","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":33,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Whiskey - Makers Mark 46 (750ml)","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":34,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Whiskey - Makers Mark","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":35,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Liquor - Midori","packaging":"750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":36,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Montezuma Gold","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":37,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Liquor - Noilly Pratt Dry Vermouth","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":38,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Liquor - Noilly Pratt Sweet Vermouth","packaging":"Case/12/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":39,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Patron (silver)","packaging":"Case/12/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":40,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Patron XO Cafe","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":41,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Sauza Hornitos (rep)","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":42,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Tres Generaciones (blanco)","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":43,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Tres Generaciones (anejo)","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":44,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Gin - Sipsmith London Dry","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":45,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Brandy - St Remy","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":46,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Gin - Tanqueray","packaging":"Case/12/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":47,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Teremana Blanco","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":48,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Teremana Rep","packaging":"1L Bottle","par":0,"onHand":"","active":true,"tab":"regular"},{"id":49,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Tequila - Tres Generaciones (rep)","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":50,"vendor":"Southern Glazer's Wine & Spirits","category":"LIQUOR","name":"Gin - Venus","packaging":"Case/6/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":51,"vendor":"Southern Glazer's Wine & Spirits","category":"WINE","name":"Wine - Franzia - Chard","packaging":"Case/4/5L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":52,"vendor":"Southern Glazer's Wine & Spirits","category":"WINE","name":"Wine - Josh Cellars - Sauvignon Blanc","packaging":"Case/12/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":53,"vendor":"Golden Brands","category":"BEER","name":"Beer - Coors Light","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":54,"vendor":"Golden Brands","category":"BEER","name":"Beer - Ace Guava Cider","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":55,"vendor":"Golden Brands","category":"BEER","name":"Beer - Angry Orchard Apple 12oz","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":56,"vendor":"Golden Brands","category":"BEER","name":"Beer - Athletic Na Run Wild IPA","packaging":"Case/24/12OZ Can","par":0,"onHand":"","active":true,"tab":"regular"},{"id":57,"vendor":"Golden Brands","category":"BEER","name":"Beer - Athletic Brewing Lite NA","packaging":"Case/24/12OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":58,"vendor":"Golden Brands","category":"BEER","name":"Beer - Racer 5 IPA","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":59,"vendor":"Golden Brands","category":"BEER","name":"Beer - Coors Banquet","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":60,"vendor":"Golden Brands","category":"BEER","name":"Beer - Corona Extra","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":61,"vendor":"Golden Brands","category":"BEER","name":"Beer - Corona (non-alcoholic)","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":62,"vendor":"Golden Brands","category":"BEER","name":"Beer - Excelsior Imperial Mango","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":63,"vendor":"Golden Brands","category":"BEER","name":"Beer - Fire 805","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":64,"vendor":"Golden Brands","category":"BEER","name":"Beer - Heineken 0.0","packaging":"Case/24/11.2OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":65,"vendor":"Golden Brands","category":"BEER","name":"Beer - Lagunitas Maximus IPA","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":66,"vendor":"Golden Brands","category":"BEER","name":"Beer - Modelo Especial","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":67,"vendor":"Golden Brands","category":"BEER","name":"Beer - Modelo Negra","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":68,"vendor":"Golden Brands","category":"BEER","name":"Beer - Voodoo Juicy Haze","packaging":"Case/15/19.20OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":69,"vendor":"Golden Brands","category":"BEER","name":"Beer - New Belgium Voodoo Ranger IPA","packaging":"Case/15/19.2OZ Can","par":0,"onHand":"","active":true,"tab":"regular"},{"id":70,"vendor":"Golden Brands","category":"BEER","name":"Beer - Pacifico","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":71,"vendor":"Golden Brands","category":"BEER","name":"Beer - White Claw (all flavors)","packaging":"Case/24/12OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":72,"vendor":"Golden Brands","category":"LIQUOR","name":"Drinks - Fever Tree Ginger Beer 150ML","packaging":"Case/24/150ML Can","par":0,"onHand":"","active":true,"tab":"regular"},{"id":73,"vendor":"Golden Brands","category":"LIQUOR","name":"Drinks - Fever Tree Sparkling Pink Grapefruit 150ML","packaging":"Case/24/150ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":74,"vendor":"Golden Brands","category":"LIQUOR","name":"Tequila - Herradura (silver)","packaging":"Case/6/1L Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":75,"vendor":"Golden Brands","category":"LIQUOR","name":"Liquor - Syrup - Mango (Re'al)","packaging":"Case/6/16.9OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":76,"vendor":"Golden Brands","category":"LIQUOR","name":"Liquor - Soonhari Strawberry Soju","packaging":"Case/24/375ML Can","par":0,"onHand":"","active":true,"tab":"regular"},{"id":77,"vendor":"Chef's Choice","category":"LIQUOR","name":"Drinks - Cherries","packaging":"Case/6/12OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":78,"vendor":"Chef's Choice","category":"LIQUOR","name":"Limes - Fresh","packaging":"LB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":79,"vendor":"Chef's Choice","category":"LIQUOR","name":"Puree - Green Apple","packaging":"Case/6/30OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":80,"vendor":"Chef's Choice","category":"LIQUOR","name":"Puree - Blackberry","packaging":"Case/6/30OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":81,"vendor":"Chef's Choice","category":"LIQUOR","name":"Puree - Black Currant","packaging":"Case/6/30OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":82,"vendor":"Chef's Choice","category":"LIQUOR","name":"Puree - Blood Orange","packaging":"Case/6/30OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":83,"vendor":"Chef's Choice","category":"LIQUOR","name":"Puree - Blueberry","packaging":"Case/6/30OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":84,"vendor":"Chef's Choice","category":"LIQUOR","name":"Puree - Cranberry","packaging":"Case/6/30OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":85,"vendor":"Chef's Choice","category":"LIQUOR","name":"Puree - Hibiscus","packaging":"Case/6/30OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":86,"vendor":"Chef's Choice","category":"LIQUOR","name":"Puree - Mandarin / Tangerine","packaging":"Case/6/30OZ","par":0,"onHand":"","active":true,"tab":"regular"},{"id":87,"vendor":"Classic Wines of California","category":"WINE","name":"Wine - Cedar Brook - Chardonnay","packaging":"Case/12/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":88,"vendor":"Classic Wines of California","category":"WINE","name":"Wine - Cedar Brook - Cabernet Sauvignon","packaging":"Case/12/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":89,"vendor":"Classic Wines of California","category":"WINE","name":"Wine - Salmon Creek Sparkling Brut","packaging":"Case/12/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":90,"vendor":"Classic Wines of California","category":"WINE","name":"Wine - Sand Point - Cabernet Sauvignon 2023","packaging":"Case/12/750ML Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":91,"vendor":"Northern California Distributors","category":"LIQUOR","name":"Liquor - Howards Margarita Freeze","packaging":"EA","par":0,"onHand":"","active":true,"tab":"regular"},{"id":92,"vendor":"Northern California Distributors","category":"LIQUOR","name":"Liquor - Howards Passion Orange Guava","packaging":"64OZ Btl","par":0,"onHand":"","active":true,"tab":"regular"},{"id":93,"vendor":"Pepsi","category":"BEVERAGES","name":"Pepsi","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":94,"vendor":"Pepsi","category":"BEVERAGES","name":"Diet Pepsi","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":95,"vendor":"Pepsi","category":"BEVERAGES","name":"Pepsi Zero","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":96,"vendor":"Pepsi","category":"BEVERAGES","name":"Starry","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":97,"vendor":"Pepsi","category":"BEVERAGES","name":"Dr. Pepper / Diet Dr Pepper","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":98,"vendor":"Pepsi","category":"BEVERAGES","name":"Orange (Tropicana)","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":99,"vendor":"Pepsi","category":"BEVERAGES","name":"Stubborn - Root Beer","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":100,"vendor":"Pepsi","category":"BEVERAGES","name":"Stubborn - Lemon Berry Acai","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":101,"vendor":"Pepsi","category":"BEVERAGES","name":"Stubborn - Vanilla Cream","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":102,"vendor":"Pepsi","category":"BEVERAGES","name":"Agave Vanilla","packaging":"Box/BIB","par":0,"onHand":"","active":true,"tab":"regular"},{"id":103,"vendor":"Pepsi","category":"BEVERAGES","name":"Tonic - Bottles","packaging":"Case","par":0,"onHand":"","active":true,"tab":"regular"},{"id":104,"vendor":"Pepsi","category":"BEVERAGES","name":"CO2 Tank - 50# (Large)","packaging":"Tank (Full)","par":0,"onHand":"","active":true,"tab":"regular"},{"id":105,"vendor":"Pepsi","category":"BEVERAGES","name":"CO2 Tank - 20# (Small)","packaging":"Tank (Full)","par":0,"onHand":"","active":true,"tab":"regular"}];
+const DEFAULT_SCHEDULES = [{"id": "sched_1", "vendor": "Southern Glazer's Wine & Spirits", "orderDays": "", "deliveryDays": "", "cutoffTime": "", "minOrder": "", "notes": ""}, {"id": "sched_2", "vendor": "Golden Brands", "orderDays": "", "deliveryDays": "", "cutoffTime": "", "minOrder": "", "notes": ""}, {"id": "sched_3", "vendor": "Classic Wines of California", "orderDays": "", "deliveryDays": "", "cutoffTime": "", "minOrder": "", "notes": ""}, {"id": "sched_4", "vendor": "Breakthru Beverage", "orderDays": "", "deliveryDays": "", "cutoffTime": "", "minOrder": "", "notes": ""}, {"id": "sched_5", "vendor": "Chef's Choice", "orderDays": "", "deliveryDays": "", "cutoffTime": "", "minOrder": "", "notes": ""}, {"id": "sched_6", "vendor": "Northern California Distributors", "orderDays": "", "deliveryDays": "", "cutoffTime": "", "minOrder": "", "notes": ""}, {"id": "sched_7", "vendor": "Pepsi", "orderDays": "Monday", "deliveryDays": "Thursday", "cutoffTime": "", "minOrder": "", "notes": "Weekly. Order Desk: 1-800-963-2424  |  Service: 866-997-3774  |  Account: #2663141"}];
+const PEPSI_CONTACT = {"id": "pepsi_c_0", "vendor": "Pepsi", "repName": "", "phone": "1-800-963-2424", "email": "cleon@aquicalmex.com", "notes": "Order Desk: 1-800-963-2424 | Service: 866-997-3774"};
+const PEPSI_LOGIN   = {"id": "pepsi_pw_0", "vendor": "Pepsi", "website": "", "username": "", "password": "Aqui1234"};
+
+const LOCATIONS = { CMP:'Campbell', WG:'Willow Glen', BV:'Blossom Valley', CPT:'Cupertino' };
+const ORDER_TABS = ['regular','weekend','premium'];
+const TAB_LABELS = { regular:'Regular Orders', weekend:'Weekend Special', premium:'Premium Special', contacts:'Rep Contacts', logins:'Vendor Logins', schedules:'Schedules & Minimums' };
+const VENDOR_COLORS = {"Southern Glazer's Wine & Spirits": "#1e3a5f", "Golden Brands": "#5c3a0a", "Classic Wines of California": "#5a1a3a", "Breakthru Beverage": "#1a4a2e", "Chef's Choice": "#2e4a1a", "Northern California Distributors": "#1a3a4a", "Pepsi": "#003087"};
+const VENDOR_ICONS  = {"Southern Glazer's Wine & Spirits": "\ud83e\udd43", "Golden Brands": "\ud83c\udf7a", "Classic Wines of California": "\ud83c\udf77", "Breakthru Beverage": "\ud83e\udd43", "Chef's Choice": "\ud83c\udf4b", "Northern California Distributors": "\ud83e\udd43", "Pepsi": "\ud83e\udd64"};
+const VENDOR_ORDER  = ["Southern Glazer's Wine & Spirits", "Golden Brands", "Classic Wines of California", "Breakthru Beverage", "Chef's Choice", "Northern California Distributors", "Pepsi"];
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+let loc='CMP', tab='regular', appData={};
+
+// ── STORAGE ───────────────────────────────────────────
+function loadData() {
+  try { const s=localStorage.getItem('parGuide_v4'); if(s) appData=JSON.parse(s); } catch(e) {}
+  Object.keys(LOCATIONS).forEach(l => {
+    if(!appData[l]) appData[l]={};
+    ORDER_TABS.forEach(t => {
+      if(!appData[l][t]) {
+        appData[l][t]={ items: DEFAULT_ITEMS
+          .filter(i => t==='regular'?true:['LIQUOR','BEER','WINE','BEVERAGES'].includes(i.category))
+          .map(i => ({ id:`${l}_${t}_${i.id}`, name:i.name, vendor:i.vendor, category:i.category, packaging:i.packaging, par:0, onHand:'', active:true }))
+        };
+      }
+    });
+    if(!appData[l].contacts) {
+      appData[l].contacts = VENDOR_ORDER.map((v,idx) => ({
+        id:`${l}_c_${idx}`, vendor:v, repName:'', phone:'', email:'', notes:''
+      }));
+      // Pre-fill Pepsi contact
+      const pc = appData[l].contacts.find(c=>c.vendor==='Pepsi');
+      if(pc) { pc.phone=PEPSI_CONTACT.phone; pc.email=PEPSI_CONTACT.email; pc.notes=PEPSI_CONTACT.notes; }
+    }
+    if(!appData[l].logins) {
+      appData[l].logins = VENDOR_ORDER.map((v,idx) => ({
+        id:`${l}_pw_${idx}`, vendor:v, website:'', username:'', password:''
+      }));
+      // Pre-fill Pepsi login
+      const pl = appData[l].logins.find(x=>x.vendor==='Pepsi');
+      if(pl) { pl.password=PEPSI_LOGIN.password; }
+    }
+    if(!appData[l].schedules) {
+      appData[l].schedules = DEFAULT_SCHEDULES.map(s => ({...s, id:`${l}_${s.id}`}));
+    }
+  });
+  save();
+}
+
+function save() {
+  try {
+    localStorage.setItem('parGuide_v4', JSON.stringify(appData));
+    const now=new Date();
+    document.getElementById('savedBadge').textContent=`Saved ${now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+  } catch(e) { document.getElementById('savedBadge').textContent='Save error'; }
+}
+
+function getItems() { return appData[loc]?.[tab]?.items||[]; }
+function getContacts() { return appData[loc]?.contacts||[]; }
+function getLogins() { return appData[loc]?.logins||[]; }
+function getSchedules() { return appData[loc]?.schedules||[]; }
+
+// ── NAV ───────────────────────────────────────────────
+function switchLoc(l) {
+  loc=l; document.getElementById('s-loc').textContent=LOCATIONS[l];
+  render(); updateCounts();
+}
+function switchTab(t) {
+  tab=t;
+  [...document.querySelectorAll('.tab-btn')].forEach(b=>b.classList.remove('active'));
+  document.getElementById(`tab-${t}`).classList.add('active');
+  if(ORDER_TABS.includes(t)) document.getElementById('nTab').value=t;
+  const isOrder=ORDER_TABS.includes(t);
+  document.getElementById('summaryBar').style.display  =isOrder?'flex':'none';
+  document.getElementById('orderToolbar').style.display=isOrder?'flex':'none';
+  render();
+}
+function render() {
+  if(tab==='contacts') renderContacts();
+  else if(tab==='logins') renderLogins();
+  else if(tab==='schedules') renderSchedules();
+  else renderItems();
+}
+function saveDate() { localStorage.setItem('parGuide_date',document.getElementById('orderDate').value); }
+
+// ── ORDER ITEMS ───────────────────────────────────────
+function renderItems() {
+  const items=getItems();
+  const search=document.getElementById('searchBox').value.toLowerCase();
+  const vf=document.getElementById('vendorFilter').value;
+  const cf=document.getElementById('catFilter').value;
+  const showInactive=document.getElementById('showInactive').checked;
+  const orderOnly=document.getElementById('showOrderOnly').checked;
+  let filtered=items.filter(item=>{
+    if(!showInactive&&!item.active) return false;
+    if(vf&&item.vendor!==vf) return false;
+    if(cf&&item.category!==cf) return false;
+    if(search&&!item.name.toLowerCase().includes(search)) return false;
+    if(orderOnly){const p=parseInt(item.par)||0,o=item.onHand===''?null:parseInt(item.onHand)||0;if(o===null||Math.max(0,p-o)<=0)return false;}
+    return true;
+  });
+  const allV=[...new Set(items.map(i=>i.vendor))],allC=[...new Set(items.map(i=>i.category))].sort();
+  const vSel=document.getElementById('vendorFilter'),cSel=document.getElementById('catFilter');
+  const curV=vSel.value,curC=cSel.value;
+  vSel.innerHTML='<option value="">All Vendors</option>';
+  allV.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;if(v===curV)o.selected=true;vSel.appendChild(o);});
+  cSel.innerHTML='<option value="">All Categories</option>';
+  allC.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;if(c===curC)o.selected=true;cSel.appendChild(o);});
+  const byVendor={};
+  VENDOR_ORDER.forEach(v=>byVendor[v]={});
+  filtered.forEach(item=>{
+    if(!byVendor[item.vendor])byVendor[item.vendor]={};
+    if(!byVendor[item.vendor][item.category])byVendor[item.vendor][item.category]=[];
+    byVendor[item.vendor][item.category].push(item);
+  });
+  let html='',totOrder=0,totActive=0,totEntered=0;
+  const vKeys=VENDOR_ORDER.filter(v=>Object.keys(byVendor[v]||{}).length>0);
+  Object.keys(byVendor).forEach(v=>{if(!vKeys.includes(v)&&Object.keys(byVendor[v]).length>0)vKeys.push(v);});
+  vKeys.forEach(vendor=>{
+    const cats=byVendor[vendor];if(!cats||!Object.keys(cats).length)return;
+    const avi=Object.values(cats).flat();
+    const ac=avi.filter(i=>i.active).length;
+    const oc=avi.filter(i=>{if(!i.active)return false;const p=parseInt(i.par)||0,o=i.onHand===''?null:parseInt(i.onHand)||0;return o!==null&&Math.max(0,p-o)>0;}).length;
+    totActive+=ac;totEntered+=avi.filter(i=>i.onHand!=='').length;
+    const color=VENDOR_COLORS[vendor]||'#3a3a3a',icon=VENDOR_ICONS[vendor]||'📦';
+    const vid=vendor.replace(/[^a-zA-Z0-9]/g,'_');
+    html+=`<div class="vendor-section" id="vs-${vid}"><div class="vendor-header" style="background:${color}" onclick="toggleVendor('${vid}')"><span style="font-size:18px">${icon}</span><span class="vendor-name">${vendor}</span>${oc>0?`<span class="vendor-order-badge">${oc} to order</span>`:''}<span class="vendor-badge">${ac} active</span><span class="vendor-collapse">▼</span></div><div class="vendor-body">`;
+    const cOrd=['LIQUOR','BEER','WINE','BEVERAGES','BAR SUPPLIES','OTHER'];
+    const cKeys=Object.keys(cats).sort((a,b)=>{const ai=cOrd.indexOf(a),bi=cOrd.indexOf(b);if(ai>=0&&bi>=0)return ai-bi;if(ai>=0)return -1;if(bi>=0)return 1;return a.localeCompare(b);});
+    cKeys.forEach(cat=>{
+      const ci=cats[cat],ca=ci.filter(i=>i.active).length,co=ci.filter(i=>{if(!i.active)return false;const p=parseInt(i.par)||0,o=i.onHand===''?null:parseInt(i.onHand)||0;return o!==null&&Math.max(0,p-o)>0;}).length;
+      const cid=`${vid}_${cat.replace(/[^a-zA-Z0-9]/g,'_')}`;
+      html+=`<div class="cat-section" id="cs-${cid}"><div class="cat-header" onclick="toggleCat('${cid}')"><span class="cat-title">${cat}</span>${co>0?`<span class="cat-order-badge">${co} to order</span>`:''}<span class="cat-badge">${ca}/${ci.length}</span><span class="cat-collapse-icon">▼</span></div><div class="cat-body"><table class="items-table"><thead><tr><th style="width:42px">Active</th><th>Item</th><th>Packaging</th><th class="c" style="width:68px">Par</th><th class="c" style="width:80px">On Hand</th><th class="c" style="width:80px">To Order</th><th style="width:40px"></th></tr></thead><tbody>`;
+      ci.forEach(item=>{
+        const par=parseInt(item.par)||0,oh=item.onHand===''?null:parseInt(item.onHand)||0;
+        const toOrd=oh!==null?Math.max(0,par-oh):null;
+        if(toOrd!==null&&toOrd>0)totOrder++;
+        const rc=!item.active?'inactive':(toOrd>0?'need-order':''),oc2=toOrd===null?'':(toOrd>0?'pos':'zero'),ot=toOrd===null?'—':(toOrd>0?toOrd:'✓');
+        const sid=item.id.toString().replace(/[^a-zA-Z0-9]/g,'_');
+        html+=`<tr class="${rc}" id="row-${sid}"><td><label class="toggle"><input type="checkbox" ${item.active?'checked':''} onchange="toggleItem('${item.id}')"><span class="slider"></span></label></td><td><div class="iname">${item.name}</div></td><td><div class="ipkg">${item.packaging||'—'}</div></td><td class="c"><input type="number" class="par-inp" value="${item.par||0}" min="0" onchange="setPar('${item.id}',this.value)"></td><td class="c"><input type="number" class="oh-inp" value="${item.onHand}" min="0" placeholder="?" onchange="setOH('${item.id}',this.value)"></td><td class="c ord-cell ${oc2}">${ot}</td><td class="c"><button class="del-btn" onclick="delItem('${item.id}')">🗑</button></td></tr>`;
+      });
+      html+=`</tbody></table></div></div>`;
+    });
+    html+=`</div></div>`;
+  });
+  if(!html)html=`<div class="empty"><p>No items match your filters.</p><button class="btn btn-primary" onclick="openAdd()">+ Add Item</button></div>`;
+  const mc=document.getElementById('mainContent');
+  mc.className='main'; mc.innerHTML=html;
+  document.getElementById('s-order').textContent=totOrder;
+  document.getElementById('s-active').textContent=totActive;
+  document.getElementById('s-entered').textContent=totEntered;
+  document.getElementById('printHdr').textContent=`Par Ordering Guide — ${LOCATIONS[loc]} — ${TAB_LABELS[tab]} — ${document.getElementById('orderDate').value||''}`;
+  updateCounts();
+}
+
+// ── CONTACTS ──────────────────────────────────────────
+function renderContacts() {
+  const contacts=getContacts();
+  const mc=document.getElementById('mainContent'); mc.className='';
+  const byV={};contacts.forEach(c=>{if(!byV[c.vendor])byV[c.vendor]=[];byV[c.vendor].push(c);});
+  const vendors=VENDOR_ORDER.filter(v=>byV[v]?.length).concat(Object.keys(byV).filter(v=>!VENDOR_ORDER.includes(v)&&byV[v]?.length));
+  let html=`<div class="info-page"><div class="info-page-header"><div><h2>📞 Rep Contacts — ${LOCATIONS[loc]}</h2><p>Click any field to edit — auto-saves instantly.</p></div><button class="btn btn-accent" onclick="addContactRow()">+ Add Contact</button></div>`;
+  vendors.forEach(vendor=>{
+    const rows=byV[vendor]||[],color=VENDOR_COLORS[vendor]||'#3a3a3a',icon=VENDOR_ICONS[vendor]||'📦',vid=vendor.replace(/[^a-zA-Z0-9]/g,'_');
+    html+=`<div class="info-card"><div class="info-card-header" style="background:${color}"><span class="info-card-icon">${icon}</span><span class="info-card-name">${vendor}</span></div><div class="info-card-body"><table class="info-table"><thead><tr><th>Rep Name</th><th>Phone</th><th>Email</th><th>Notes</th><th style="width:36px"></th></tr></thead><tbody id="ct-${vid}">`;
+    rows.forEach(row=>{html+=contactRow(row);});
+    html+=`</tbody></table><button class="add-row-btn" onclick="addContactRowForVendor(this.dataset.vendor)" data-vendor="${vendor.replace(/"/g,'&quot;')}">＋ Add rep for ${vendor}</button></div></div>`;
+  });
+  mc.innerHTML=html+`</div>`;
+  document.getElementById('printHdr').textContent=`Rep Contacts — ${LOCATIONS[loc]}`;
+}
+function contactRow(row) {
+  const sid=row.id.toString().replace(/[^a-zA-Z0-9]/g,'_');
+  return `<tr id="ctr-${sid}"><td><input class="inf" value="${esc(row.repName)}" placeholder="Rep name" onchange="updateContact('${row.id}','repName',this.value)"></td><td><input class="inf inf-phone" type="tel" value="${esc(row.phone)}" placeholder="(555) 000-0000" onchange="updateContact('${row.id}','phone',this.value)"></td><td><input class="inf inf-email" type="email" value="${esc(row.email)}" placeholder="rep@vendor.com" onchange="updateContact('${row.id}','email',this.value)"></td><td><input class="inf inf-notes" value="${esc(row.notes)}" placeholder="Notes…" onchange="updateContact('${row.id}','notes',this.value)"></td><td><button class="del-btn" onclick="delContact('${row.id}')">🗑</button></td></tr>`;
+}
+function updateContact(id,f,v){const c=getContacts().find(x=>x.id===id);if(c){c[f]=v;save();}}
+function delContact(id){if(!confirm('Remove this contact?'))return;appData[loc].contacts=getContacts().filter(x=>x.id!==id);save();renderContacts();toast('Contact removed');}
+function addContactRowForVendor(vendor){appData[loc].contacts.push({id:`${loc}_c_${Date.now()}`,vendor,repName:'',phone:'',email:'',notes:''});save();renderContacts();}
+function addContactRow(){addContactRowForVendor(VENDOR_ORDER[0]);}
+
+// ── LOGINS ────────────────────────────────────────────
+function renderLogins() {
+  const logins=getLogins();
+  const mc=document.getElementById('mainContent'); mc.className='';
+  const byV={};logins.forEach(l=>{if(!byV[l.vendor])byV[l.vendor]=[];byV[l.vendor].push(l);});
+  const vendors=VENDOR_ORDER.filter(v=>byV[v]?.length).concat(Object.keys(byV).filter(v=>!VENDOR_ORDER.includes(v)&&byV[v]?.length));
+  let html=`<div class="info-page"><div class="info-page-header"><div><h2>🔐 Vendor Logins — ${LOCATIONS[loc]}</h2><p>Ordering portal credentials. Stored locally on this device only.</p></div><button class="btn btn-accent" onclick="addLoginRowForVendor(VENDOR_ORDER[0])">+ Add Login</button></div>`;
+  vendors.forEach(vendor=>{
+    const rows=byV[vendor]||[],color=VENDOR_COLORS[vendor]||'#3a3a3a',icon=VENDOR_ICONS[vendor]||'📦',vid=vendor.replace(/[^a-zA-Z0-9]/g,'_');
+    html+=`<div class="info-card"><div class="info-card-header" style="background:${color}"><span class="info-card-icon">${icon}</span><span class="info-card-name">${vendor}</span></div><div class="info-card-body"><table class="info-table"><thead><tr><th>Website / Portal URL</th><th>Username / Login</th><th>Password</th><th style="width:36px"></th></tr></thead><tbody id="lt-${vid}">`;
+    rows.forEach(row=>{html+=loginRow(row);});
+    html+=`</tbody></table><button class="add-row-btn" onclick="addLoginRowForVendor(this.dataset.vendor)" data-vendor="${vendor.replace(/"/g,'&quot;')}">＋ Add login for ${vendor}</button></div></div>`;
+  });
+  mc.innerHTML=html+`</div>`;
+  document.getElementById('printHdr').textContent=`Vendor Logins — ${LOCATIONS[loc]}`;
+}
+function loginRow(row) {
+  const sid=row.id.toString().replace(/[^a-zA-Z0-9]/g,'_');
+  return `<tr id="ltr-${sid}"><td><input class="inf inf-url" type="url" value="${esc(row.website)}" placeholder="https://order.vendor.com" onchange="updateLogin('${row.id}','website',this.value)"></td><td><input class="inf inf-user" value="${esc(row.username)}" placeholder="username or email" onchange="updateLogin('${row.id}','username',this.value)"></td><td><div class="pw-wrap"><input class="inf inf-pass hidden" id="pw-${sid}" type="text" value="${esc(row.password)}" placeholder="password" onchange="updateLogin('${row.id}','password',this.value)" autocomplete="off"><button class="eye-btn" id="eye-${sid}" onclick="togglePw('${sid}')" title="Show/hide">👁</button></div></td><td><button class="del-btn" onclick="delLogin('${row.id}')">🗑</button></td></tr>`;
+}
+function togglePw(sid){const i=document.getElementById(`pw-${sid}`),e=document.getElementById(`eye-${sid}`);if(i.classList.toggle('hidden'))e.textContent='👁';else e.textContent='🙈';}
+function updateLogin(id,f,v){const l=getLogins().find(x=>x.id===id);if(l){l[f]=v;save();}}
+function delLogin(id){if(!confirm('Remove this login?'))return;appData[loc].logins=getLogins().filter(x=>x.id!==id);save();renderLogins();toast('Login removed');}
+function addLoginRowForVendor(vendor){appData[loc].logins.push({id:`${loc}_pw_${Date.now()}`,vendor,website:'',username:'',password:''});save();renderLogins();}
+
+// ── SCHEDULES ─────────────────────────────────────────
+function renderSchedules() {
+  const schedules=getSchedules();
+  const mc=document.getElementById('mainContent'); mc.className='';
+  const byV={};
+  schedules.forEach(s=>{if(!byV[s.vendor])byV[s.vendor]=[];byV[s.vendor].push(s);});
+  const vendors=VENDOR_ORDER.filter(v=>byV[v]?.length).concat(Object.keys(byV).filter(v=>!VENDOR_ORDER.includes(v)&&byV[v]?.length));
+
+  let html=`<div class="sched-page"><div class="sched-page-header"><div><h2>📅 Schedules &amp; Minimums — ${LOCATIONS[loc]}</h2><p>Order days, delivery days, cutoff times, and minimum order amounts per vendor.</p></div></div>`;
+
+  vendors.forEach(vendor=>{
+    const rows=byV[vendor]||[];
+    const s=rows[0]||{};  // one schedule row per vendor
+    const color=VENDOR_COLORS[vendor]||'#3a3a3a',icon=VENDOR_ICONS[vendor]||'📦';
+    const sid=s.id||`${loc}_sched_${vendor.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    const odays=(s.orderDays||'').split(',').map(d=>d.trim()).filter(Boolean);
+    const ddays=(s.deliveryDays||'').split(',').map(d=>d.trim()).filter(Boolean);
+
+    const dayPillsOrder = DAYS.map(d=>`<span class="day-pill${odays.includes(d)?' on':''}" onclick="toggleDay('${sid}','orderDays','${d}')">${d}</span>`).join('');
+    const dayPillsDelivery = DAYS.map(d=>`<span class="day-pill${ddays.includes(d)?' on':''}" onclick="toggleDay('${sid}','deliveryDays','${d}')">${d}</span>`).join('');
+
+    html+=`
+    <div class="sched-card">
+      <div class="sched-card-header" style="background:${color}">
+        <span style="font-size:17px">${icon}</span>
+        <span style="font-weight:700;font-size:14px">${vendor}</span>
+      </div>
+      <div class="sched-grid">
+        <div class="sched-field">
+          <label>Order Days</label>
+          <div class="day-pills" id="op-${sid.replace(/[^a-zA-Z0-9]/g,'_')}">${dayPillsOrder}</div>
+        </div>
+        <div class="sched-field">
+          <label>Delivery Days</label>
+          <div class="day-pills" id="dp-${sid.replace(/[^a-zA-Z0-9]/g,'_')}">${dayPillsDelivery}</div>
+        </div>
+        <div class="sched-field">
+          <label>Order Cutoff Time</label>
+          <input class="sched-inp" type="time" value="${esc(s.cutoffTime||'')}" onchange="updateSched('${sid}','cutoffTime',this.value)">
+        </div>
+        <div class="sched-field">
+          <label>Minimum Order Amount</label>
+          <input class="sched-inp min-inp" type="text" value="${esc(s.minOrder||'')}" placeholder="e.g. $150.00" onchange="updateSched('${sid}','minOrder',this.value)">
+        </div>
+        <div class="sched-field full-width" style="border-bottom:none">
+          <label>Notes / Special Instructions</label>
+          <textarea class="sched-inp notes-inp" onchange="updateSched('${sid}','notes',this.value)" placeholder="e.g. Call rep 24 hrs before, holiday exceptions…">${esc(s.notes||'')}</textarea>
+        </div>
+      </div>
+    </div>`;
+  });
+  mc.innerHTML=html+`</div>`;
+  document.getElementById('printHdr').textContent=`Schedules & Minimums — ${LOCATIONS[loc]}`;
+}
+
+function toggleDay(sid,field,day) {
+  const s=getSchedules().find(x=>x.id===sid);
+  if(!s) return;
+  let days=(s[field]||'').split(',').map(d=>d.trim()).filter(Boolean);
+  if(days.includes(day)) days=days.filter(d=>d!==day);
+  else days.push(day);
+  // Keep in DAYS order
+  days.sort((a,b)=>DAYS.indexOf(a)-DAYS.indexOf(b));
+  s[field]=days.join(', ');
+  save();
+  // Toggle pill visually without full re-render
+  const prefix=field==='orderDays'?'op':'dp';
+  const container=document.getElementById(`${prefix}-${sid.replace(/[^a-zA-Z0-9]/g,'_')}`);
+  if(container) {
+    container.querySelectorAll('.day-pill').forEach(p=>{
+      p.classList.toggle('on', days.includes(p.textContent.trim()));
+    });
+  }
+}
+function updateSched(id,f,v){
+  const s=getSchedules().find(x=>x.id===id);
+  if(s){s[f]=v;save();}
+}
+
+// ── HELPERS ───────────────────────────────────────────
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toggleItem(id){const it=getItems().find(i=>i.id===id);if(it){it.active=!it.active;save();renderItems();}}
+function setPar(id,v){const it=getItems().find(i=>i.id===id);if(it){it.par=parseInt(v)||0;save();renderItems();}}
+function setOH(id,v){const it=getItems().find(i=>i.id===id);if(it){it.onHand=v===''?'':parseInt(v)||0;save();renderItems();}}
+function delItem(id){if(!confirm('Remove this item?'))return;appData[loc][tab].items=getItems().filter(i=>i.id!==id);save();renderItems();toast('Item removed');}
+function clearOH(){if(!confirm(`Clear all On Hand entries for ${LOCATIONS[loc]} — ${TAB_LABELS[tab]}?`))return;getItems().forEach(i=>i.onHand='');save();renderItems();toast('On Hand cleared');}
+function toggleVendor(vid){document.getElementById(`vs-${vid}`).classList.toggle('collapsed');}
+function toggleCat(cid){document.getElementById(`cs-${cid}`).classList.toggle('cat-collapsed');}
+function updateCounts(){
+  ORDER_TABS.forEach(t=>{
+    const its=appData[loc]?.[t]?.items||[];
+    const n=its.filter(i=>{if(!i.active)return false;const p=parseInt(i.par)||0,o=i.onHand===''?null:parseInt(i.onHand)||0;return o!==null&&Math.max(0,p-o)>0;}).length;
+    const el=document.getElementById(`cnt-${t}`);if(el)el.textContent=n>0?`(${n})`:'';
+  });
+}
+function openAdd(){['nName','nPkg'].forEach(id=>document.getElementById(id).value='');document.getElementById('nPar').value='';document.getElementById('nTab').value=tab;document.getElementById('addModal').classList.add('open');setTimeout(()=>document.getElementById('nName').focus(),100);}
+function closeAdd(){document.getElementById('addModal').classList.remove('open');}
+function addItem(){
+  const name=document.getElementById('nName').value.trim();
+  if(!name){alert('Please enter an item name.');return;}
+  const vendor=document.getElementById('nVendor').value,category=document.getElementById('nCat').value,pkg=document.getElementById('nPkg').value.trim(),t=document.getElementById('nTab').value,par=parseInt(document.getElementById('nPar').value)||0;
+  const ni={id:`custom_${Date.now()}`,name,vendor,category,packaging:pkg,par,onHand:'',active:true};
+  if(!appData[loc][t])appData[loc][t]={items:[]};
+  appData[loc][t].items.push(ni);
+  if(t!==tab)switchTab(t);else{save();renderItems();}
+  closeAdd();toast(`"${name}" added`);
+}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500);}
+
+function init(){
+  loadData();
+  const saved=localStorage.getItem('parGuide_date');
+  const di=document.getElementById('orderDate');
+  di.value=saved||new Date().toISOString().split('T')[0];
+  document.getElementById('s-loc').textContent=LOCATIONS[loc];
+  renderItems();
+  document.getElementById('addModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAdd();});
+  setInterval(()=>save(),30000);
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
