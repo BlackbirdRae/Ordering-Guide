@@ -106,6 +106,10 @@ input:checked+.slider:before{transform:translateX(16px)}
 .pw-wrap{display:flex;align-items:center;gap:4px}
 .eye-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 4px;border-radius:4px;transition:all .15s;line-height:1}
 .eye-btn:hover{color:var(--primary);background:#f0f3fa}
+.url-wrap{display:flex;align-items:center;gap:6px}
+.url-link-btn{font-size:15px;text-decoration:none;padding:3px 5px;border-radius:4px;transition:all .15s;line-height:1;flex-shrink:0}
+.url-link-btn:hover{background:#e8f0fe;transform:scale(1.15)}
+.url-link-empty{opacity:.25;cursor:default}
 .add-row-btn{padding:7px 14px;border:1px dashed var(--border);border-top:none;background:#fafbfe;color:var(--muted);cursor:pointer;font-size:12px;font-weight:600;width:100%;text-align:left;transition:all .15s;display:flex;align-items:center;gap:6px}
 .add-row-btn:hover{background:#f0f3fa;color:var(--primary);border-color:var(--primary)}
 
@@ -534,7 +538,11 @@ function renderLogins() {
 }
 function loginRow(row) {
   const sid=row.id.toString().replace(/[^a-zA-Z0-9]/g,'_');
-  return `<tr id="ltr-${sid}"><td><input class="inf inf-url" type="url" value="${esc(row.website)}" placeholder="https://order.vendor.com" onchange="updateLogin('${row.id}','website',this.value)"></td><td><input class="inf inf-user" value="${esc(row.username)}" placeholder="username or email" onchange="updateLogin('${row.id}','username',this.value)"></td><td><div class="pw-wrap"><input class="inf inf-pass hidden" id="pw-${sid}" type="text" value="${esc(row.password)}" placeholder="password" onchange="updateLogin('${row.id}','password',this.value)" autocomplete="off"><button class="eye-btn" id="eye-${sid}" onclick="togglePw('${sid}')" title="Show/hide">👁</button></div></td><td><button class="del-btn" onclick="delLogin('${row.id}')">🗑</button></td></tr>`;
+  const urlVal = row.website||'';
+  const linkBtn = urlVal
+    ? `<a href="${esc(urlVal)}" target="_blank" rel="noopener noreferrer" class="url-link-btn" title="Open ${esc(urlVal)}">🔗</a>`
+    : `<span class="url-link-btn url-link-empty" title="Enter a URL first">🔗</span>`;
+  return `<tr id="ltr-${sid}"><td><div class="url-wrap">${linkBtn}<input class="inf inf-url" type="url" value="${esc(urlVal)}" placeholder="https://order.vendor.com" onchange="updateLogin('${row.id}','website',this.value);renderLogins()"></div></td><td><input class="inf inf-user" value="${esc(row.username)}" placeholder="username or email" onchange="updateLogin('${row.id}','username',this.value)"></td><td><div class="pw-wrap"><input class="inf inf-pass hidden" id="pw-${sid}" type="text" value="${esc(row.password)}" placeholder="password" onchange="updateLogin('${row.id}','password',this.value)" autocomplete="off"><button class="eye-btn" id="eye-${sid}" onclick="togglePw('${sid}')" title="Show/hide">👁</button></div></td><td><button class="del-btn" onclick="delLogin('${row.id}')">🗑</button></td></tr>`;
 }
 function togglePw(sid){const i=document.getElementById(`pw-${sid}`),e=document.getElementById(`eye-${sid}`);if(i.classList.toggle('hidden'))e.textContent='👁';else e.textContent='🙈';}
 function updateLogin(id,f,v){const l=getLogins().find(x=>x.id===id);if(l){l[f]=v;save();}}
