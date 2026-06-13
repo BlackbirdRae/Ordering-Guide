@@ -271,88 +271,122 @@ const ORDER_TABS = ['regular','weekend','premium'];
 const TAB_LABELS = { regular:'Regular Orders', weekend:'Weekend Special', premium:'Premium Special', contacts:'Rep Contacts', logins:'Vendor Logins', schedules:'Schedules & Minimums' };
 const VENDOR_COLORS = {"Southern Glazer's Wine & Spirits": "#1e3a5f", "Golden Brands": "#5c3a0a", "Classic Wines of California": "#5a1a3a", "Breakthru Beverage": "#1a4a2e", "Chef's Choice": "#2e4a1a", "Northern California Distributors": "#1a3a4a", "Pepsi": "#003087","Performance Food Group":"#7b2d00"};
 const VENDOR_ICONS  = {"Southern Glazer's Wine & Spirits": "\ud83e\udd43", "Golden Brands": "\ud83c\udf7a", "Classic Wines of California": "\ud83c\udf77", "Breakthru Beverage": "\ud83e\udd43", "Chef's Choice": "\ud83c\udf4b", "Northern California Distributors": "\ud83e\udd43", "Pepsi": "\ud83e\udd64","Performance Food Group":"\ud83c\udf79"};
-const VENDOR_ORDER  = ["Southern Glazer's Wine & Spirits", "Golden Brands", "Classic Wines of California", "Breakthru Beverage", "Chef's Choice", "Northern California Distributors", "Pepsi"];
+const VENDOR_ORDER  = ["Southern Glazer's Wine & Spirits", "Golden Brands", "Classic Wines of California", "Breakthru Beverage", "Chef's Choice", "Northern California Distributors", "Pepsi", "Performance Food Group"];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 let loc='CMP', tab='regular', appData={};
 
 // ── STORAGE ───────────────────────────────────────────
 function loadData() {
-  try { const s=localStorage.getItem('parGuide_v4'); if(s) appData=JSON.parse(s); } catch(e) {}
+  // Load order data from any previous version, preserving par/onHand/active/custom items
+  let oldData = null;
+  try {
+    const s6 = localStorage.getItem('parGuide_v6');
+    const s5 = localStorage.getItem('parGuide_v5');
+    const s4 = localStorage.getItem('parGuide_v4');
+    if (s6) oldData = JSON.parse(s6);
+    else if (s5) oldData = JSON.parse(s5);
+    else if (s4) oldData = JSON.parse(s4);
+  } catch(e) {}
+
+  appData = {};
   Object.keys(LOCATIONS).forEach(l => {
-    if(!appData[l]) appData[l]={};
+    appData[l] = {};
+
+    // ── ORDER TABS: restore from saved data, add any missing items ──
     ORDER_TABS.forEach(t => {
-      if(!appData[l][t]) {
-        appData[l][t]={ items: DEFAULT_ITEMS
-          .filter(i => t==='regular'?true:['LIQUOR','BEER','WINE','BEVERAGES'].includes(i.category))
-          .map(i => ({ id:`${l}_${t}_${i.id}`, name:i.name, vendor:i.vendor, category:i.category, packaging:i.packaging, par:0, onHand:'', active:true }))
-        };
-      }
+      const savedItems = oldData?.[l]?.[t]?.items || [];
+      // Build a map of saved item state by name (preserves par, onHand, active)
+      const savedMap = {};
+      savedItems.forEach(i => { savedMap[i.name.toLowerCase()] = i; });
+
+      appData[l][t] = {
+        items: DEFAULT_ITEMS
+          .filter(i => t === 'regular' ? true : ['LIQUOR','BEER','WINE','BEVERAGES'].includes(i.category))
+          .map(i => {
+            const saved = savedMap[i.name.toLowerCase()];
+            return {
+              id: `${l}_${t}_${i.id}`,
+              name: i.name, vendor: i.vendor,
+              category: i.category, packaging: i.packaging,
+              par:    saved ? (saved.par    ?? 0)   : 0,
+              onHand: saved ? (saved.onHand ?? '')  : '',
+              active: saved ? (saved.active ?? true): true
+            };
+          })
+      };
+      // Re-add any custom items the user created
+      savedItems
+        .filter(i => String(i.id).startsWith('custom_'))
+        .forEach(i => appData[l][t].items.push(i));
     });
-    if(!appData[l].contacts) {
-      appData[l].contacts = VENDOR_ORDER.map((v,idx) => ({
-        id:`${l}_c_${idx}`, vendor:v, repName:'', phone:'', email:'', notes:''
-      }));
-      // Pre-fill Pepsi contact
-      const pc = appData[l].contacts.find(c=>c.vendor==='Pepsi');
-      if(pc) { pc.phone=PEPSI_CONTACT.phone; pc.email=PEPSI_CONTACT.email; pc.notes=PEPSI_CONTACT.notes; }
-    }
-    if(!appData[l].logins) {
-      appData[l].logins = VENDOR_ORDER.map((v,idx) => ({
-        id:`${l}_pw_${idx}`, vendor:v, website:'', username:'', password:''
-      }));
-      // Pre-fill Pepsi login
-      const pl = appData[l].logins.find(x=>x.vendor==='Pepsi');
-      if(pl) { pl.password=PEPSI_LOGIN.password; }
-    }
-    if(!appData[l].schedules) {
-      appData[l].schedules = DEFAULT_SCHEDULES.map(s => ({...s, id:`${l}_${s.id}`}));
-    }
+
+    // ── CONTACTS: always rebuild from VENDOR_ORDER, restore saved fields ──
+    const savedContacts = oldData?.[l]?.contacts || [];
+    const savedContactMap = {};
+    savedContacts.forEach(c => { savedContactMap[c.vendor] = c; });
+    appData[l].contacts = VENDOR_ORDER.map((v, idx) => {
+      const saved = savedContactMap[v];
+      return {
+        id:      saved?.id      || `${l}_c_${idx}`,
+        vendor:  v,
+        repName: saved?.repName || (v === 'Pepsi' ? PEPSI_CONTACT.repName  : '') || '',
+        phone:   saved?.phone   || (v === 'Pepsi' ? PEPSI_CONTACT.phone    : '') || '',
+        email:   saved?.email   || (v === 'Pepsi' ? PEPSI_CONTACT.email    : '') || '',
+        notes:   saved?.notes   || (v === 'Pepsi' ? PEPSI_CONTACT.notes    : '') || ''
+      };
+    });
+    // Re-add custom contacts not in VENDOR_ORDER
+    savedContacts
+      .filter(c => !VENDOR_ORDER.includes(c.vendor))
+      .forEach(c => appData[l].contacts.push(c));
+
+    // ── LOGINS: always rebuild from VENDOR_ORDER, restore saved fields ──
+    const savedLogins = oldData?.[l]?.logins || [];
+    const savedLoginMap = {};
+    savedLogins.forEach(x => { savedLoginMap[x.vendor] = x; });
+    appData[l].logins = VENDOR_ORDER.map((v, idx) => {
+      const saved = savedLoginMap[v];
+      return {
+        id:       saved?.id       || `${l}_pw_${idx}`,
+        vendor:   v,
+        website:  saved?.website  || '',
+        username: saved?.username || '',
+        password: saved?.password || (v === 'Pepsi' ? PEPSI_LOGIN.password : '') || ''
+      };
+    });
+    savedLogins
+      .filter(x => !VENDOR_ORDER.includes(x.vendor))
+      .forEach(x => appData[l].logins.push(x));
+
+    // ── SCHEDULES: always rebuild from VENDOR_ORDER, restore saved fields ──
+    const savedScheds = oldData?.[l]?.schedules || [];
+    const savedSchedMap = {};
+    savedScheds.forEach(s => { savedSchedMap[s.vendor] = s; });
+    appData[l].schedules = VENDOR_ORDER.map((v, idx) => {
+      const saved  = savedSchedMap[v];
+      const def    = DEFAULT_SCHEDULES.find(d => d.vendor === v);
+      return {
+        id:           saved?.id           || `${l}_sched_${idx}`,
+        vendor:       v,
+        orderDays:    saved?.orderDays    || def?.orderDays    || '',
+        deliveryDays: saved?.deliveryDays || def?.deliveryDays || '',
+        cutoffTime:   saved?.cutoffTime   || def?.cutoffTime   || '',
+        minOrder:     saved?.minOrder     || def?.minOrder     || '',
+        notes:        saved?.notes        || def?.notes        || ''
+      };
+    });
+    savedScheds
+      .filter(s => !VENDOR_ORDER.includes(s.vendor))
+      .forEach(s => appData[l].schedules.push(s));
   });
-  // ── MIGRATION: add any new vendor items not yet in saved data ──
-  Object.keys(LOCATIONS).forEach(l => {
-    ORDER_TABS.forEach(t => {
-      const existing = appData[l][t].items;
-      const existingNames = new Set(existing.map(i => i.name.toLowerCase()));
-      const missing = DEFAULT_ITEMS.filter(i =>
-        (t === 'regular' ? true : ['LIQUOR','BEER','WINE','BEVERAGES'].includes(i.category)) &&
-        !existingNames.has(i.name.toLowerCase())
-      );
-      if (missing.length > 0) {
-        missing.forEach(i => {
-          existing.push({ id:`${l}_${t}_${i.id}`, name:i.name, vendor:i.vendor,
-            category:i.category, packaging:i.packaging, par:0, onHand:'', active:true });
-        });
-      }
-    });
-    // Add missing contact/login/schedule rows for new vendors
-    const knownContactVendors = new Set(appData[l].contacts.map(c => c.vendor));
-    VENDOR_ORDER.forEach((v, idx) => {
-      if (!knownContactVendors.has(v)) {
-        appData[l].contacts.push({id:`${l}_c_new_${idx}`, vendor:v, repName:'', phone:'', email:'', notes:''});
-      }
-    });
-    const knownLoginVendors = new Set(appData[l].logins.map(x => x.vendor));
-    VENDOR_ORDER.forEach((v, idx) => {
-      if (!knownLoginVendors.has(v)) {
-        appData[l].logins.push({id:`${l}_pw_new_${idx}`, vendor:v, website:'', username:'', password:''});
-      }
-    });
-    const knownSchedVendors = new Set(appData[l].schedules.map(s => s.vendor));
-    VENDOR_ORDER.forEach((v, idx) => {
-      if (!knownSchedVendors.has(v)) {
-        const def = DEFAULT_SCHEDULES.find(s => s.vendor === v);
-        appData[l].schedules.push(def ? {...def, id:`${l}_${def.id}`} :
-          {id:`${l}_sched_new_${idx}`, vendor:v, orderDays:'', deliveryDays:'', cutoffTime:'', minOrder:'', notes:''});
-      }
-    });
-  });
+
   save();
 }
 
 function save() {
   try {
-    localStorage.setItem('parGuide_v4', JSON.stringify(appData));
+    localStorage.setItem('parGuide_v6', JSON.stringify(appData));
     const now=new Date();
     document.getElementById('savedBadge').textContent=`Saved ${now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
   } catch(e) { document.getElementById('savedBadge').textContent='Save error'; }
@@ -457,6 +491,7 @@ function renderItems() {
 }
 
 // ── CONTACTS ──────────────────────────────────────────
+
 function renderContacts() {
   const contacts=getContacts();
   const mc=document.getElementById('mainContent'); mc.className='';
@@ -614,6 +649,66 @@ function addItem(){
   closeAdd();toast(`"${name}" added`);
 }
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500);}
+
+function forceRebuildInfoTabs() {
+  // Completely rebuilds contacts, logins, and schedules for ALL locations
+  // from the current VENDOR_ORDER. Preserves any data already entered.
+  Object.keys(LOCATIONS).forEach(l => {
+    if (!appData[l]) appData[l] = {};
+
+    // CONTACTS
+    const oldContacts = appData[l].contacts || [];
+    const oldCMap = {};
+    oldContacts.forEach(c => { oldCMap[c.vendor] = c; });
+    appData[l].contacts = VENDOR_ORDER.map((v, i) => ({
+      id:      oldCMap[v]?.id      || (l+'_c_'+i),
+      vendor:  v,
+      repName: oldCMap[v]?.repName || (v==='Pepsi' ? PEPSI_CONTACT.repName : '') || '',
+      phone:   oldCMap[v]?.phone   || (v==='Pepsi' ? PEPSI_CONTACT.phone   : '') || '',
+      email:   oldCMap[v]?.email   || (v==='Pepsi' ? PEPSI_CONTACT.email   : '') || '',
+      notes:   oldCMap[v]?.notes   || (v==='Pepsi' ? PEPSI_CONTACT.notes   : '') || ''
+    }));
+    // keep any custom contacts not in VENDOR_ORDER
+    oldContacts.filter(c => !VENDOR_ORDER.includes(c.vendor)).forEach(c => appData[l].contacts.push(c));
+
+    // LOGINS
+    const oldLogins = appData[l].logins || [];
+    const oldLMap = {};
+    oldLogins.forEach(x => { oldLMap[x.vendor] = x; });
+    appData[l].logins = VENDOR_ORDER.map((v, i) => ({
+      id:       oldLMap[v]?.id       || (l+'_pw_'+i),
+      vendor:   v,
+      website:  oldLMap[v]?.website  || '',
+      username: oldLMap[v]?.username || '',
+      password: oldLMap[v]?.password || (v==='Pepsi' ? PEPSI_LOGIN.password : '') || ''
+    }));
+    oldLogins.filter(x => !VENDOR_ORDER.includes(x.vendor)).forEach(x => appData[l].logins.push(x));
+
+    // SCHEDULES
+    const oldScheds = appData[l].schedules || [];
+    const oldSMap = {};
+    oldScheds.forEach(s => { oldSMap[s.vendor] = s; });
+    appData[l].schedules = VENDOR_ORDER.map((v, i) => {
+      const def = DEFAULT_SCHEDULES.find(d => d.vendor === v) || {};
+      return {
+        id:           oldSMap[v]?.id           || (l+'_sched_'+i),
+        vendor:       v,
+        orderDays:    oldSMap[v]?.orderDays    || def.orderDays    || '',
+        deliveryDays: oldSMap[v]?.deliveryDays || def.deliveryDays || '',
+        cutoffTime:   oldSMap[v]?.cutoffTime   || def.cutoffTime   || '',
+        minOrder:     oldSMap[v]?.minOrder     || def.minOrder     || '',
+        notes:        oldSMap[v]?.notes        || def.notes        || ''
+      };
+    });
+    oldScheds.filter(s => !VENDOR_ORDER.includes(s.vendor)).forEach(s => appData[l].schedules.push(s));
+  });
+
+  // Save under a fresh key so the fixed data loads next time
+  localStorage.setItem('parGuide_v7', JSON.stringify(appData));
+  localStorage.setItem('parGuide_v6', JSON.stringify(appData));
+  toast('✅ All vendor sections rebuilt! Check Rep Contacts, Vendor Logins & Schedules tabs.');
+  render();
+}
 
 function init(){
   loadData();
