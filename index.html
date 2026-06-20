@@ -173,7 +173,7 @@ input:checked+.slider:before{transform:translateX(16px)}
 <div class="toast" id="toast"></div>
 
 <div class="header">
-  <h1>📋 Par Ordering Guide</h1>
+  <h1>📋 Par Ordering Guide <span style="font-size:12px;font-weight:400;opacity:0.6;margin-left:8px;">Aqui Cal-Mex</span></h1>
   <div class="header-controls">
     <select id="locSel" onchange="switchLoc(this.value)">
       <option value="CMP">Campbell</option>
@@ -188,6 +188,7 @@ input:checked+.slider:before{transform:translateX(16px)}
 
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('regular')" id="tab-regular">Regular Orders <span class="cnt" id="cnt-regular"></span></button>
+  <button class="tab-btn" onclick="switchTab('bulk')" id="tab-bulk">📦 Bulk Orders <span class="cnt" id="cnt-bulk"></span></button>
   <button class="tab-btn" onclick="switchTab('weekend')" id="tab-weekend">🌟 Weekend Special <span class="cnt" id="cnt-weekend"></span></button>
   <button class="tab-btn" onclick="switchTab('premium')" id="tab-premium">✨ Premium Special <span class="cnt" id="cnt-premium"></span></button>
   <div class="tab-divider"></div>
@@ -215,6 +216,7 @@ input:checked+.slider:before{transform:translateX(16px)}
   </label>
   <div class="toolbar-right">
     <button class="btn btn-ghost btn-sm" onclick="clearOH()">🗑 Clear On Hand</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleAllVendors()">⊟ Collapse All</button>
     <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
     <button class="btn btn-accent" onclick="openAdd()">+ Add Item</button>
   </div>
@@ -252,6 +254,7 @@ input:checked+.slider:before{transform:translateX(16px)}
     <div class="fg"><label>Add to Tab</label>
       <select id="nTab">
         <option value="regular">Regular Orders</option>
+        <option value="bulk">Bulk Orders</option>
         <option value="weekend">Weekend Special</option>
         <option value="premium">Premium Special</option>
       </select>
@@ -271,12 +274,56 @@ const PEPSI_CONTACT = {"id": "pepsi_c_0", "vendor": "Pepsi", "repName": "", "pho
 const PEPSI_LOGIN   = {"id": "pepsi_pw_0", "vendor": "Pepsi", "website": "", "username": "", "password": "Aqui1234"};
 
 const LOCATIONS = { CMP:'Campbell', WG:'Willow Glen', BV:'Blossom Valley', CPT:'Cupertino' };
-const ORDER_TABS = ['regular','weekend','premium'];
-const TAB_LABELS = { regular:'Regular Orders', weekend:'Weekend Special', premium:'Premium Special', contacts:'Rep Contacts', logins:'Vendor Logins', schedules:'Schedules & Minimums' };
+const ORDER_TABS = ['regular','bulk','weekend','premium'];
+const TAB_LABELS = { regular:'Regular Orders', bulk:'Bulk Orders', weekend:'Weekend Special', premium:'Premium Special', contacts:'Rep Contacts', logins:'Vendor Logins', schedules:'Schedules & Minimums' };
 const VENDOR_COLORS = {"Southern Glazer's Wine & Spirits": "#1e3a5f", "Golden Brands": "#5c3a0a", "Classic Wines of California": "#5a1a3a", "Breakthru Beverage": "#1a4a2e", "Chef's Choice": "#2e4a1a", "Northern California Distributors": "#1a3a4a", "Pepsi": "#003087","Performance Food Group":"#7b2d00"};
 const VENDOR_ICONS  = {"Southern Glazer's Wine & Spirits": "\ud83e\udd43", "Golden Brands": "\ud83c\udf7a", "Classic Wines of California": "\ud83c\udf77", "Breakthru Beverage": "\ud83e\udd43", "Chef's Choice": "\ud83c\udf4b", "Northern California Distributors": "\ud83e\udd43", "Pepsi": "\ud83e\udd64","Performance Food Group":"\ud83c\udf79"};
 const VENDOR_ORDER  = ["Southern Glazer's Wine & Spirits", "Golden Brands", "Classic Wines of California", "Breakthru Beverage", "Chef's Choice", "Northern California Distributors", "Pepsi", "Performance Food Group"];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+// ── SUPABASE CLOUD SYNC ───────────────────────────────────
+const SB_URL = 'https://dyqaqbslllpcifqzbkic.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5cWFxYnNsbGxwY2lmcXpia2ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5NzQxODksImV4cCI6MjA2MzU1MDE4OX0.cneVh15Y4OdJ7i0tJY1UNFHE5hVLhizjW61ogmHU_nA';
+function sbH() {
+  return { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+}
+
+async function syncFromCloud() {
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/par_guide?select=location_code,data', { headers: sbH() });
+    if (!r.ok) return false;
+    const rows = await r.json();
+    if (!rows.length) return false;
+    rows.forEach(row => {
+      if (row.data && Object.keys(row.data).length > 0) {
+        appData[row.location_code] = row.data;
+      }
+    });
+    return true;
+  } catch(e) { return false; }
+}
+
+async function pushToCloud(l) {
+  try {
+    const r = await fetch(SB_URL + '/rest/v1/par_guide', {
+      method: 'POST',
+      headers: { ...sbH(), 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ location_code: l, data: appData[l], updated_at: new Date().toISOString() })
+    });
+    if (r.ok) {
+      setBadge('☁ Synced ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+    } else {
+      setBadge('💾 Local ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+    }
+  } catch(e) {
+    setBadge('💾 Offline ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+  }
+}
+
+function setBadge(text) {
+  const el = document.getElementById('savedBadge');
+  if (el) el.textContent = text;
+}
 
 let loc='CMP', tab='regular', appData={};
 
@@ -285,10 +332,12 @@ function loadData() {
   // Load order data from any previous version, preserving par/onHand/active/custom items
   let oldData = null;
   try {
+    const s7 = localStorage.getItem('parGuide_v7');
     const s6 = localStorage.getItem('parGuide_v6');
     const s5 = localStorage.getItem('parGuide_v5');
     const s4 = localStorage.getItem('parGuide_v4');
-    if (s6) oldData = JSON.parse(s6);
+    if (s7) oldData = JSON.parse(s7);
+    else if (s6) oldData = JSON.parse(s6);
     else if (s5) oldData = JSON.parse(s5);
     else if (s4) oldData = JSON.parse(s4);
   } catch(e) {}
@@ -298,6 +347,8 @@ function loadData() {
     appData[l] = {};
 
     // ── ORDER TABS: restore from saved data, add any missing items ──
+    // Preserve collapsed state across versions
+    if (oldData?.[l]?._collapsed) appData[l]._collapsed = oldData[l]._collapsed;
     ORDER_TABS.forEach(t => {
       const savedItems = oldData?.[l]?.[t]?.items || [];
       // Build a map of saved item state by name (preserves par, onHand, active)
@@ -306,7 +357,7 @@ function loadData() {
 
       appData[l][t] = {
         items: DEFAULT_ITEMS
-          .filter(i => t === 'regular' ? true : ['LIQUOR','BEER','WINE','BEVERAGES'].includes(i.category))
+          .filter(i => (t === 'regular' || t === 'bulk') ? true : ['LIQUOR','BEER','WINE','BEVERAGES'].includes(i.category))
           .map(i => {
             const saved = savedMap[i.name.toLowerCase()];
             return {
@@ -390,10 +441,10 @@ function loadData() {
 
 function save() {
   try {
-    localStorage.setItem('parGuide_v6', JSON.stringify(appData));
-    const now=new Date();
-    document.getElementById('savedBadge').textContent=`Saved ${now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
-  } catch(e) { document.getElementById('savedBadge').textContent='Save error'; }
+    localStorage.setItem('parGuide_v7', JSON.stringify(appData));
+    setBadge('Saving...');
+    pushToCloud(loc);
+  } catch(e) { setBadge('Save error'); }
 }
 
 function getItems() { return appData[loc]?.[tab]?.items||[]; }
@@ -465,7 +516,8 @@ function renderItems() {
     totActive+=ac;totEntered+=avi.filter(i=>i.onHand!=='').length;
     const color=VENDOR_COLORS[vendor]||'#3a3a3a',icon=VENDOR_ICONS[vendor]||'📦';
     const vid=vendor.replace(/[^a-zA-Z0-9]/g,'_');
-    html+=`<div class="vendor-section" id="vs-${vid}"><div class="vendor-header" style="background:${color}" onclick="toggleVendor('${vid}')"><span style="font-size:18px">${icon}</span><span class="vendor-name">${vendor}</span>${oc>0?`<span class="vendor-order-badge">${oc} to order</span>`:''}<span class="vendor-badge">${ac} active</span><span class="vendor-collapse">▼</span></div><div class="vendor-body">`;
+    const isCollapsed = appData[loc]._collapsed?.[`${tab}|${vid}`] === true;
+    html+=`<div class="vendor-section${isCollapsed?' collapsed':''}" id="vs-${vid}"><div class="vendor-header" style="background:${color}" onclick="toggleVendor('${vid}')"><span style="font-size:18px">${icon}</span><span class="vendor-name">${vendor}</span>${oc>0?`<span class="vendor-order-badge">${oc} to order</span>`:''}<span class="vendor-badge">${ac} active</span><span class="vendor-collapse">▼</span></div><div class="vendor-body">`;
     const cOrd=['LIQUOR','BEER','WINE','BEVERAGES','BAR SUPPLIES','OTHER'];
     const cKeys=Object.keys(cats).sort((a,b)=>{const ai=cOrd.indexOf(a),bi=cOrd.indexOf(b);if(ai>=0&&bi>=0)return ai-bi;if(ai>=0)return -1;if(bi>=0)return 1;return a.localeCompare(b);});
     cKeys.forEach(cat=>{
@@ -635,8 +687,40 @@ function setPar(id,v){const it=getItems().find(i=>i.id===id);if(it){it.par=parse
 function setOH(id,v){const it=getItems().find(i=>i.id===id);if(it){it.onHand=v===''?'':parseInt(v)||0;save();renderItems();}}
 function delItem(id){if(!confirm('Remove this item?'))return;appData[loc][tab].items=getItems().filter(i=>i.id!==id);save();renderItems();toast('Item removed');}
 function clearOH(){if(!confirm(`Clear all On Hand entries for ${LOCATIONS[loc]} — ${TAB_LABELS[tab]}?`))return;getItems().forEach(i=>i.onHand='');save();renderItems();toast('On Hand cleared');}
-function toggleVendor(vid){document.getElementById(`vs-${vid}`).classList.toggle('collapsed');}
+function toggleVendor(vid) {
+  const el = document.getElementById(`vs-${vid}`);
+  if (!el) return;
+  const nowCollapsed = !el.classList.contains('collapsed');
+  el.classList.toggle('collapsed', nowCollapsed);
+  // Persist per location+tab
+  if (!appData[loc]._collapsed) appData[loc]._collapsed = {};
+  const key = `${tab}|${vid}`;
+  if (nowCollapsed) appData[loc]._collapsed[key] = true;
+  else delete appData[loc]._collapsed[key];
+  save();
+}
 function toggleCat(cid){document.getElementById(`cs-${cid}`).classList.toggle('cat-collapsed');}
+function toggleAllVendors() {
+  if (!appData[loc]._collapsed) appData[loc]._collapsed = {};
+  // Check if any are currently expanded — if so, collapse all; otherwise expand all
+  const vendorEls = document.querySelectorAll('.vendor-section');
+  const anyExpanded = [...vendorEls].some(el => !el.classList.contains('collapsed'));
+  vendorEls.forEach(el => {
+    const vid = el.id.replace('vs-','');
+    const key = `${tab}|${vid}`;
+    if (anyExpanded) {
+      el.classList.add('collapsed');
+      appData[loc]._collapsed[key] = true;
+    } else {
+      el.classList.remove('collapsed');
+      delete appData[loc]._collapsed[key];
+    }
+  });
+  // Update button text
+  const btn = document.querySelector('[onclick="toggleAllVendors()"]');
+  if (btn) btn.textContent = anyExpanded ? '⊞ Expand All' : '⊟ Collapse All';
+  save();
+}
 function updateCounts(){
   ORDER_TABS.forEach(t=>{
     const its=appData[loc]?.[t]?.items||[];
@@ -718,15 +802,32 @@ function forceRebuildInfoTabs() {
   render();
 }
 
-function init(){
+async function init(){
+  // Render immediately from local data so page feels instant
   loadData();
   const saved=localStorage.getItem('parGuide_date');
   const di=document.getElementById('orderDate');
   di.value=saved||new Date().toISOString().split('T')[0];
   document.getElementById('s-loc').textContent=LOCATIONS[loc];
+  setBadge('Connecting...');
   renderItems();
+
+  // Then sync with cloud
+  const gotCloud = await syncFromCloud();
+  if(gotCloud){
+    // Cloud has data — re-run migration to fill any new vendors/items, re-render
+    loadData();
+    localStorage.setItem('parGuide_v7', JSON.stringify(appData));
+    renderItems();
+    setBadge('☁ Synced '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+  } else {
+    // Cloud is empty or offline — push all local data up
+    setBadge('Uploading...');
+    await Promise.all(Object.keys(LOCATIONS).map(l=>pushToCloud(l)));
+  }
+
   document.getElementById('addModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAdd();});
-  setInterval(()=>save(),30000);
+  setInterval(()=>save(), 120000);
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
