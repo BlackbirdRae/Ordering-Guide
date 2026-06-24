@@ -331,7 +331,7 @@ function setBadge(text) {
   if (el) el.textContent = text;
 }
 
-let loc='CMP', tab='regular', appData={};
+let loc='CMP', tab='regular', appData={}, _cloudReady=false;
 
 // ── STORAGE ───────────────────────────────────────────
 function loadData() {
@@ -450,8 +450,10 @@ function loadData() {
 function save() {
   try {
     localStorage.setItem('parGuide_v7', JSON.stringify(appData));
-    setBadge('Saving...');
-    pushToCloud(loc);
+    if (_cloudReady) {
+      setBadge('Saving...');
+      pushToCloud(loc);
+    }
   } catch(e) { setBadge('Save error'); }
 }
 
@@ -832,29 +834,40 @@ function forceRebuildInfoTabs() {
 }
 
 async function init(){
-  // Render immediately from local data so page feels instant
-  loadData();
   const saved=localStorage.getItem('parGuide_date');
   const di=document.getElementById('orderDate');
   di.value=saved||new Date().toISOString().split('T')[0];
   document.getElementById('s-loc').textContent=LOCATIONS[loc];
-  setBadge('Connecting...');
-  renderItems();
+  setBadge('Connecting to cloud...');
 
-  // Then sync with cloud
+  // ── STEP 1: Try cloud FIRST before touching local data ─────────────────
+  // This prevents a new device's empty data from overwriting shared cloud data
   const gotCloud = await syncFromCloud();
+
   if(gotCloud){
-    // Cloud has data — re-run migration to fill any new vendors/items, re-render
-    loadData();
+    // Cloud has data — save it to localStorage so loadData() migration reads it
     localStorage.setItem('parGuide_v7', JSON.stringify(appData));
-    renderItems();
+    // Run migration to fill any new vendors/items added since last cloud save
+    loadData();
+    // Save migrated result back (loadData calls save() but _cloudReady is still false so no cloud push)
+    localStorage.setItem('parGuide_v7', JSON.stringify(appData));
     setBadge('☁ Synced '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
   } else {
-    // Cloud is empty or offline — push all local data up
-    setBadge('Uploading...');
-    await Promise.all(Object.keys(LOCATIONS).map(l=>pushToCloud(l)));
+    // No cloud data (first ever use, or offline) — load from localStorage/defaults
+    loadData();
+    if(navigator.onLine){
+      // Online but cloud empty — push all local data up
+      setBadge('Uploading to cloud...');
+      await Promise.all(Object.keys(LOCATIONS).map(l=>pushToCloud(l)));
+      setBadge('☁ Synced '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+    } else {
+      setBadge('💾 Offline');
+    }
   }
 
+  // ── STEP 2: Render and enable cloud saving ──────────────────────────────
+  _cloudReady = true;  // from this point on, save() will push to cloud
+  renderItems();
   document.getElementById('addModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAdd();});
   setInterval(()=>save(), 120000);
 }
