@@ -407,43 +407,41 @@ function loadData() {
         .forEach(i => appData[l][t].items.push(i));
     });
 
-    // ── CONTACTS: always rebuild from VENDOR_ORDER, restore saved fields ──
+    // ── CONTACTS: preserve ALL saved contacts (multiple per vendor OK) ──────
+    // Old code used a map (vendor → single contact), which dropped extra reps.
+    // New approach: keep every saved contact row; add a blank only if a vendor
+    // has NO entry at all.
     const savedContacts = oldData?.[l]?.contacts || [];
-    const savedContactMap = {};
-    savedContacts.forEach(c => { savedContactMap[c.vendor] = c; });
-    appData[l].contacts = VENDOR_ORDER.map((v, idx) => {
-      const saved = savedContactMap[v];
-      return {
-        id:      saved?.id      || `${l}_c_${idx}`,
-        vendor:  v,
-        repName: saved?.repName || (v === 'Pepsi' ? PEPSI_CONTACT.repName  : '') || '',
-        phone:   saved?.phone   || (v === 'Pepsi' ? PEPSI_CONTACT.phone    : '') || '',
-        email:   saved?.email   || (v === 'Pepsi' ? PEPSI_CONTACT.email    : '') || '',
-        notes:   saved?.notes   || (v === 'Pepsi' ? PEPSI_CONTACT.notes    : '') || ''
-      };
+    const vendorsWithContact = new Set(savedContacts.map(c => c.vendor));
+    appData[l].contacts = [...savedContacts];
+    VENDOR_ORDER.forEach((v, idx) => {
+      if (!vendorsWithContact.has(v)) {
+        appData[l].contacts.push({
+          id:      `${l}_c_${idx}`,
+          vendor:  v,
+          repName: v === 'Pepsi' ? PEPSI_CONTACT.repName  : '',
+          phone:   v === 'Pepsi' ? PEPSI_CONTACT.phone    : '',
+          email:   v === 'Pepsi' ? PEPSI_CONTACT.email    : '',
+          notes:   v === 'Pepsi' ? PEPSI_CONTACT.notes    : ''
+        });
+      }
     });
-    // Re-add custom contacts not in VENDOR_ORDER
-    savedContacts
-      .filter(c => !VENDOR_ORDER.includes(c.vendor))
-      .forEach(c => appData[l].contacts.push(c));
 
-    // ── LOGINS: always rebuild from VENDOR_ORDER, restore saved fields ──
+    // ── LOGINS: same approach — preserve all, add blank only if missing ───
     const savedLogins = oldData?.[l]?.logins || [];
-    const savedLoginMap = {};
-    savedLogins.forEach(x => { savedLoginMap[x.vendor] = x; });
-    appData[l].logins = VENDOR_ORDER.map((v, idx) => {
-      const saved = savedLoginMap[v];
-      return {
-        id:       saved?.id       || `${l}_pw_${idx}`,
-        vendor:   v,
-        website:  saved?.website  || '',
-        username: saved?.username || '',
-        password: saved?.password || (v === 'Pepsi' ? PEPSI_LOGIN.password : '') || ''
-      };
+    const vendorsWithLogin = new Set(savedLogins.map(x => x.vendor));
+    appData[l].logins = [...savedLogins];
+    VENDOR_ORDER.forEach((v, idx) => {
+      if (!vendorsWithLogin.has(v)) {
+        appData[l].logins.push({
+          id:       `${l}_pw_${idx}`,
+          vendor:   v,
+          website:  '',
+          username: '',
+          password: v === 'Pepsi' ? PEPSI_LOGIN.password : ''
+        });
+      }
     });
-    savedLogins
-      .filter(x => !VENDOR_ORDER.includes(x.vendor))
-      .forEach(x => appData[l].logins.push(x));
 
     // ── SCHEDULES: always rebuild from VENDOR_ORDER, restore saved fields ──
     const savedScheds = oldData?.[l]?.schedules || [];
@@ -808,31 +806,33 @@ function forceRebuildInfoTabs() {
 
     // CONTACTS
     const oldContacts = appData[l].contacts || [];
-    const oldCMap = {};
-    oldContacts.forEach(c => { oldCMap[c.vendor] = c; });
-    appData[l].contacts = VENDOR_ORDER.map((v, i) => ({
-      id:      oldCMap[v]?.id      || (l+'_c_'+i),
-      vendor:  v,
-      repName: oldCMap[v]?.repName || (v==='Pepsi' ? PEPSI_CONTACT.repName : '') || '',
-      phone:   oldCMap[v]?.phone   || (v==='Pepsi' ? PEPSI_CONTACT.phone   : '') || '',
-      email:   oldCMap[v]?.email   || (v==='Pepsi' ? PEPSI_CONTACT.email   : '') || '',
-      notes:   oldCMap[v]?.notes   || (v==='Pepsi' ? PEPSI_CONTACT.notes   : '') || ''
-    }));
-    // keep any custom contacts not in VENDOR_ORDER
-    oldContacts.filter(c => !VENDOR_ORDER.includes(c.vendor)).forEach(c => appData[l].contacts.push(c));
+    const vendorsHaveContact = new Set(oldContacts.map(c => c.vendor));
+    appData[l].contacts = [...oldContacts];
+    VENDOR_ORDER.forEach((v, i) => {
+      if (!vendorsHaveContact.has(v)) {
+        appData[l].contacts.push({
+          id: l+'_c_'+i, vendor: v,
+          repName: v==='Pepsi'?PEPSI_CONTACT.repName:'',
+          phone:   v==='Pepsi'?PEPSI_CONTACT.phone:'',
+          email:   v==='Pepsi'?PEPSI_CONTACT.email:'',
+          notes:   v==='Pepsi'?PEPSI_CONTACT.notes:''
+        });
+      }
+    });
 
     // LOGINS
     const oldLogins = appData[l].logins || [];
-    const oldLMap = {};
-    oldLogins.forEach(x => { oldLMap[x.vendor] = x; });
-    appData[l].logins = VENDOR_ORDER.map((v, i) => ({
-      id:       oldLMap[v]?.id       || (l+'_pw_'+i),
-      vendor:   v,
-      website:  oldLMap[v]?.website  || '',
-      username: oldLMap[v]?.username || '',
-      password: oldLMap[v]?.password || (v==='Pepsi' ? PEPSI_LOGIN.password : '') || ''
-    }));
-    oldLogins.filter(x => !VENDOR_ORDER.includes(x.vendor)).forEach(x => appData[l].logins.push(x));
+    const vendorsHaveLogin = new Set(oldLogins.map(x => x.vendor));
+    appData[l].logins = [...oldLogins];
+    VENDOR_ORDER.forEach((v, i) => {
+      if (!vendorsHaveLogin.has(v)) {
+        appData[l].logins.push({
+          id: l+'_pw_'+i, vendor: v,
+          website: '', username: '',
+          password: v==='Pepsi'?PEPSI_LOGIN.password:''
+        });
+      }
+    });
 
     // SCHEDULES
     const oldScheds = appData[l].schedules || [];
