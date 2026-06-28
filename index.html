@@ -294,41 +294,64 @@ function sbH() {
   return { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
 }
 
-async function syncFromCloud() {
+// ── CLOUD SYNC (Supabase is the single source of truth) ──────────────────
+// Rule: cloud data is NEVER overwritten by empty/default local data.
+// localStorage is a read-only session cache — it is populated FROM the cloud,
+// never pushed TO the cloud on startup.
+
+function setBadge(text) {
+  const el = document.getElementById('savedBadge');
+  if (el) el.textContent = text;
+}
+
+async function fetchAllFromCloud() {
+  // Returns all location data from Supabase, or null on failure
   try {
     const r = await fetch(SB_URL + '/rest/v1/par_guide?select=location_code,data', { headers: sbH() });
-    if (!r.ok) return false;
+    if (!r.ok) return null;
     const rows = await r.json();
-    if (!rows.length) return false;
-    rows.forEach(row => {
-      if (row.data && Object.keys(row.data).length > 0) {
-        appData[row.location_code] = row.data;
-      }
-    });
-    return true;
-  } catch(e) { return false; }
+    if (!rows || !rows.length) return null;
+    const out = {};
+    rows.forEach(row => { if (row.data) out[row.location_code] = row.data; });
+    return Object.keys(out).length ? out : null;
+  } catch(e) { return null; }
 }
 
 async function pushToCloud(l) {
+  // Saves one location's data to Supabase (upsert)
+  if (!appData[l]) return;
   try {
     const r = await fetch(SB_URL + '/rest/v1/par_guide', {
       method: 'POST',
       headers: { ...sbH(), 'Prefer': 'resolution=merge-duplicates' },
       body: JSON.stringify({ location_code: l, data: appData[l], updated_at: new Date().toISOString() })
     });
-    if (r.ok) {
-      setBadge('☁ Synced ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
-    } else {
-      setBadge('💾 Local ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
-    }
+    setBadge(r.ok
+      ? '☁ Live · Saved ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+      : '⚠️ Save failed');
   } catch(e) {
-    setBadge('💾 Offline ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+    setBadge('💾 Offline · ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
   }
 }
 
-function setBadge(text) {
-  const el = document.getElementById('savedBadge');
-  if (el) el.textContent = text;
+async function refreshFromCloud() {
+  // Silent background refresh — picks up changes made on other computers
+  const cloudData = await fetchAllFromCloud();
+  if (!cloudData) return;
+  let changed = false;
+  Object.keys(cloudData).forEach(l => {
+    const cloudUpdated = cloudData[l]?._updated || 0;
+    const localUpdated = appData[l]?._updated || 0;
+    if (cloudUpdated > localUpdated) {
+      appData[l] = cloudData[l];
+      changed = true;
+    }
+  });
+  if (changed) {
+    localStorage.setItem('parGuide_cache', JSON.stringify(appData));
+    render();
+    setBadge('☁ Live · Updated ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+  }
 }
 
 let loc='CMP', tab='regular', appData={}, _cloudReady=false;
@@ -338,11 +361,11 @@ function loadData() {
   // Load order data from any previous version, preserving par/onHand/active/custom items
   let oldData = null;
   try {
-    const s7 = localStorage.getItem('parGuide_v7');
+    const s7 = localStorage.getItem('parGuide_cache');
     const s6 = localStorage.getItem('parGuide_v6');
     const s5 = localStorage.getItem('parGuide_v5');
     const s4 = localStorage.getItem('parGuide_v4');
-    if (s7) oldData = JSON.parse(s7);
+    if (s7) { try { oldData = JSON.parse(s7); } catch(e) {} }
     else if (s6) oldData = JSON.parse(s6);
     else if (s5) oldData = JSON.parse(s5);
     else if (s4) oldData = JSON.parse(s4);
@@ -448,8 +471,12 @@ function loadData() {
 }
 
 function save() {
+  // Stamp this location's data with current timestamp so refreshFromCloud
+  // can tell which version is newer
+  if (!appData[loc]) return;
+  appData[loc]._updated = Date.now();
   try {
-    localStorage.setItem('parGuide_v7', JSON.stringify(appData));
+    localStorage.setItem('parGuide_cache', JSON.stringify(appData));
     if (_cloudReady) {
       setBadge('Saving...');
       pushToCloud(loc);
@@ -838,38 +865,50 @@ async function init(){
   const di=document.getElementById('orderDate');
   di.value=saved||new Date().toISOString().split('T')[0];
   document.getElementById('s-loc').textContent=LOCATIONS[loc];
-  setBadge('Connecting to cloud...');
+  setBadge('☁ Connecting...');
 
-  // ── STEP 1: Try cloud FIRST before touching local data ─────────────────
-  // This prevents a new device's empty data from overwriting shared cloud data
-  const gotCloud = await syncFromCloud();
-
-  if(gotCloud){
-    // Cloud has data — save it to localStorage so loadData() migration reads it
-    localStorage.setItem('parGuide_v7', JSON.stringify(appData));
-    // Run migration to fill any new vendors/items added since last cloud save
-    loadData();
-    // Save migrated result back (loadData calls save() but _cloudReady is still false so no cloud push)
-    localStorage.setItem('parGuide_v7', JSON.stringify(appData));
-    setBadge('☁ Synced '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
-  } else {
-    // No cloud data (first ever use, or offline) — load from localStorage/defaults
-    loadData();
-    if(navigator.onLine){
-      // Online but cloud empty — push all local data up
-      setBadge('Uploading to cloud...');
-      await Promise.all(Object.keys(LOCATIONS).map(l=>pushToCloud(l)));
-      setBadge('☁ Synced '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
-    } else {
-      setBadge('💾 Offline');
-    }
+  // ── Show cached data immediately so the page isn't blank while loading ──
+  const cached = localStorage.getItem('parGuide_cache');
+  if (cached) {
+    try { appData = JSON.parse(cached); } catch(e) {}
+    loadData(); // run migration to add any new vendors/items
+    render();
+    setBadge('☁ Loading latest...');
   }
 
-  // ── STEP 2: Render and enable cloud saving ──────────────────────────────
-  _cloudReady = true;  // from this point on, save() will push to cloud
-  renderItems();
+  // ── Fetch authoritative data from cloud ─────────────────────────────────
+  // Cloud is ALWAYS the source of truth — local data never overwrites it.
+  const cloudData = await fetchAllFromCloud();
+
+  if (cloudData) {
+    // Merge cloud data with defaults (adds any new items/vendors not yet in cloud)
+    Object.keys(LOCATIONS).forEach(l => {
+      if (cloudData[l]) {
+        appData[l] = cloudData[l]; // cloud wins
+      }
+    });
+    loadData();   // migration: fill any new vendors/items the cloud doesn't have yet
+    localStorage.setItem('parGuide_cache', JSON.stringify(appData));
+    setBadge('☁ Live · ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+  } else if (!cached) {
+    // Truly first time (no cloud, no cache) — initialize and push up
+    loadData();
+    setBadge('☁ Setting up...');
+    await Promise.all(Object.keys(LOCATIONS).map(l => pushToCloud(l)));
+    setBadge('☁ Live · Ready');
+  } else {
+    setBadge('💾 Offline — showing cached data');
+  }
+
+  // ── Enable saving and start live refresh ────────────────────────────────
+  _cloudReady = true;
+  render();
   document.getElementById('addModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAdd();});
-  setInterval(()=>save(), 120000);
+
+  // Auto-refresh every 60 seconds — picks up changes from other computers
+  setInterval(refreshFromCloud, 60000);
+  // Auto-save heartbeat every 2 minutes
+  setInterval(()=>{ if(_cloudReady) pushToCloud(loc); }, 120000);
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
