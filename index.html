@@ -348,6 +348,7 @@ async function refreshFromCloud() {
     }
   });
   if (changed) {
+    Object.keys(LOCATIONS).forEach(l=>migrateLocation(l));
     localStorage.setItem('parGuide_cache', JSON.stringify(appData));
     render();
     setBadge('☁ Live · Updated ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
@@ -357,117 +358,13 @@ async function refreshFromCloud() {
 let loc='CMP', tab='regular', appData={}, _cloudReady=false;
 
 // ── STORAGE ───────────────────────────────────────────
-function loadData() {
-  // Load order data from any previous version, preserving par/onHand/active/custom items
-  let oldData = null;
-  try {
-    const s7 = localStorage.getItem('parGuide_cache');
-    const s6 = localStorage.getItem('parGuide_v6');
-    const s5 = localStorage.getItem('parGuide_v5');
-    const s4 = localStorage.getItem('parGuide_v4');
-    if (s7) { try { oldData = JSON.parse(s7); } catch(e) {} }
-    else if (s6) oldData = JSON.parse(s6);
-    else if (s5) oldData = JSON.parse(s5);
-    else if (s4) oldData = JSON.parse(s4);
-  } catch(e) {}
-
-  appData = {};
-  Object.keys(LOCATIONS).forEach(l => {
-    appData[l] = {};
-
-    // ── ORDER TABS: restore from saved data, add any missing items ──
-    // Preserve collapsed state across versions
-    if (oldData?.[l]?._collapsed) appData[l]._collapsed = oldData[l]._collapsed;
-    ORDER_TABS.forEach(t => {
-      const savedItems = oldData?.[l]?.[t]?.items || [];
-      // Build a map of saved item state by name (preserves par, onHand, active)
-      const savedMap = {};
-      savedItems.forEach(i => { savedMap[i.name.toLowerCase()] = i; });
-
-      appData[l][t] = {
-        items: DEFAULT_ITEMS
-          .filter(i => (t === 'regular' || t === 'bulk') ? true : ['LIQUOR','BEER','WINE','BEVERAGES'].includes(i.category))
-          .map(i => {
-            const saved = savedMap[i.name.toLowerCase()];
-            return {
-              id: `${l}_${t}_${i.id}`,
-              name: i.name, vendor: i.vendor,
-              category: i.category, packaging: i.packaging,
-              par:    saved ? (saved.par    ?? 0)      : 0,
-              onHand: saved ? (saved.onHand ?? '')     : '',
-              active: saved ? (saved.active ?? true)   : true,
-              unit:   saved ? (saved.unit   ?? 'case') : 'case',
-              notes:  saved ? (saved.notes  ?? '')     : ''
-            };
-          })
-      };
-      // Re-add any custom items the user created
-      savedItems
-        .filter(i => String(i.id).startsWith('custom_'))
-        .forEach(i => appData[l][t].items.push(i));
-    });
-
-    // ── CONTACTS: preserve ALL saved contacts (multiple per vendor OK) ──────
-    // Old code used a map (vendor → single contact), which dropped extra reps.
-    // New approach: keep every saved contact row; add a blank only if a vendor
-    // has NO entry at all.
-    const savedContacts = oldData?.[l]?.contacts || [];
-    const vendorsWithContact = new Set(savedContacts.map(c => c.vendor));
-    appData[l].contacts = [...savedContacts];
-    VENDOR_ORDER.forEach((v, idx) => {
-      if (!vendorsWithContact.has(v)) {
-        appData[l].contacts.push({
-          id:      `${l}_c_${idx}`,
-          vendor:  v,
-          repName: v === 'Pepsi' ? PEPSI_CONTACT.repName  : '',
-          phone:   v === 'Pepsi' ? PEPSI_CONTACT.phone    : '',
-          email:   v === 'Pepsi' ? PEPSI_CONTACT.email    : '',
-          notes:   v === 'Pepsi' ? PEPSI_CONTACT.notes    : ''
-        });
-      }
-    });
-
-    // ── LOGINS: same approach — preserve all, add blank only if missing ───
-    const savedLogins = oldData?.[l]?.logins || [];
-    const vendorsWithLogin = new Set(savedLogins.map(x => x.vendor));
-    appData[l].logins = [...savedLogins];
-    VENDOR_ORDER.forEach((v, idx) => {
-      if (!vendorsWithLogin.has(v)) {
-        appData[l].logins.push({
-          id:       `${l}_pw_${idx}`,
-          vendor:   v,
-          website:  '',
-          username: '',
-          password: v === 'Pepsi' ? PEPSI_LOGIN.password : ''
-        });
-      }
-    });
-
-    // ── SCHEDULES: always rebuild from VENDOR_ORDER, restore saved fields ──
-    const savedScheds = oldData?.[l]?.schedules || [];
-    const savedSchedMap = {};
-    savedScheds.forEach(s => { savedSchedMap[s.vendor] = s; });
-    appData[l].schedules = VENDOR_ORDER.map((v, idx) => {
-      const saved  = savedSchedMap[v];
-      const def    = DEFAULT_SCHEDULES.find(d => d.vendor === v);
-      return {
-        id:           saved?.id           || `${l}_sched_${idx}`,
-        vendor:       v,
-        orderDays:    saved?.orderDays    || def?.orderDays    || '',
-        deliveryDays: saved?.deliveryDays || def?.deliveryDays || '',
-        cutoffTime:   saved?.cutoffTime   || def?.cutoffTime   || '',
-        minOrder:     saved?.minOrder     || def?.minOrder     || '',
-        notes:        saved?.notes        || def?.notes        || ''
-      };
-    });
-    savedScheds
-      .filter(s => !VENDOR_ORDER.includes(s.vendor))
-      .forEach(s => appData[l].schedules.push(s));
-  });
-
-  save();
+function loadData(){
+  // Legacy function — now just ensures defaults are in place.
+  // Cloud data is handled in init() via migrateLocation().
+  const cached=localStorage.getItem('parGuide_cache');
+  if(cached){ try{ const d=JSON.parse(cached); Object.assign(appData,d); }catch(e){} }
+  ensureAllDefaults();
 }
-
 function save() {
   // Stamp this location's data with current timestamp so refreshFromCloud
   // can tell which version is newer
@@ -867,48 +764,118 @@ async function init(){
   document.getElementById('s-loc').textContent=LOCATIONS[loc];
   setBadge('☁ Connecting...');
 
-  // ── Show cached data immediately so the page isn't blank while loading ──
-  const cached = localStorage.getItem('parGuide_cache');
-  if (cached) {
-    try { appData = JSON.parse(cached); } catch(e) {}
-    loadData(); // run migration to add any new vendors/items
-    render();
-    setBadge('☁ Loading latest...');
-  }
+  // Show cached data immediately while we fetch from cloud
+  const cached=localStorage.getItem('parGuide_cache');
+  if(cached){ try{ appData=JSON.parse(cached); }catch(e){} }
+  ensureAllDefaults(); // make sure all locations have structure
+  render();
 
-  // ── Fetch authoritative data from cloud ─────────────────────────────────
-  // Cloud is ALWAYS the source of truth — local data never overwrites it.
+  // Fetch from cloud — this is ALWAYS authoritative
   const cloudData = await fetchAllFromCloud();
 
-  if (cloudData) {
-    // Merge cloud data with defaults (adds any new items/vendors not yet in cloud)
-    Object.keys(LOCATIONS).forEach(l => {
-      if (cloudData[l]) {
-        appData[l] = cloudData[l]; // cloud wins
+  if(cloudData){
+    // Cloud has data: merge it in WITHOUT overwriting with empty local defaults
+    Object.keys(LOCATIONS).forEach(l=>{
+      if(cloudData[l] && Object.keys(cloudData[l]).length > 0){
+        appData[l] = cloudData[l]; // cloud wins for this location
       }
     });
-    loadData();   // migration: fill any new vendors/items the cloud doesn't have yet
+    // Migration: add any new items/vendors that exist in code but not in cloud data yet
+    // This NEVER removes or resets existing cloud data
+    Object.keys(LOCATIONS).forEach(l => migrateLocation(l));
     localStorage.setItem('parGuide_cache', JSON.stringify(appData));
-    setBadge('☁ Live · ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
-  } else if (!cached) {
-    // Truly first time (no cloud, no cache) — initialize and push up
-    loadData();
+    setBadge('☁ Live · '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+  } else if(!cached){
+    // No cloud and no cache = truly fresh start, push defaults up
+    ensureAllDefaults();
     setBadge('☁ Setting up...');
-    await Promise.all(Object.keys(LOCATIONS).map(l => pushToCloud(l)));
+    await Promise.all(Object.keys(LOCATIONS).map(l=>pushToCloud(l)));
+    localStorage.setItem('parGuide_cache', JSON.stringify(appData));
     setBadge('☁ Live · Ready');
   } else {
-    setBadge('💾 Offline — showing cached data');
+    setBadge('💾 Offline — cached data shown');
   }
 
-  // ── Enable saving and start live refresh ────────────────────────────────
-  _cloudReady = true;
+  _cloudReady=true;
   render();
   document.getElementById('addModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAdd();});
+  // Auto-refresh every 60s to pick up other people's changes
+  setInterval(refreshFromCloud,60000);
+  // Heartbeat save every 3 minutes
+  setInterval(()=>{ if(_cloudReady) pushToCloud(loc); },180000);
+}
 
-  // Auto-refresh every 60 seconds — picks up changes from other computers
-  setInterval(refreshFromCloud, 60000);
-  // Auto-save heartbeat every 2 minutes
-  setInterval(()=>{ if(_cloudReady) pushToCloud(loc); }, 120000);
+// Sets up blank default structure for a location (only called for fresh starts)
+function ensureAllDefaults(){
+  Object.keys(LOCATIONS).forEach(l=>{
+    if(!appData[l]) appData[l]={};
+    migrateLocation(l);
+  });
+}
+
+// Adds missing items/vendors to an existing location WITHOUT overwriting anything
+function migrateLocation(l){
+  if(!appData[l]) appData[l]={};
+
+  // Order tabs: add any DEFAULT_ITEMS not yet in this location's data
+  ORDER_TABS.forEach(t=>{
+    if(!appData[l][t] || !appData[l][t].items){
+      appData[l][t]={ items: DEFAULT_ITEMS
+        .filter(i=>(t==='regular'||t==='bulk')?true:['LIQUOR','BEER','WINE','BEVERAGES'].includes(i.category))
+        .map(i=>({id:`${l}_${t}_${i.id}`,name:i.name,vendor:i.vendor,category:i.category,
+                  packaging:i.packaging,par:0,onHand:'',active:true,unit:'case',notes:''}))
+      };
+    } else {
+      // Add only missing items (by name), never reset existing ones
+      const existingNames=new Set(appData[l][t].items.map(i=>i.name.toLowerCase()));
+      DEFAULT_ITEMS
+        .filter(i=>(t==='regular'||t==='bulk')?true:['LIQUOR','BEER','WINE','BEVERAGES'].includes(i.category))
+        .filter(i=>!existingNames.has(i.name.toLowerCase()))
+        .forEach(i=>appData[l][t].items.push({
+          id:`${l}_${t}_${i.id}`,name:i.name,vendor:i.vendor,category:i.category,
+          packaging:i.packaging,par:0,onHand:'',active:true,unit:'case',notes:''
+        }));
+      // Re-add custom items
+      appData[l][t].items.filter(i=>String(i.id).startsWith('custom_')).forEach(()=>{});
+    }
+  });
+
+  // Contacts: add blank entries only for vendors that have NO contact row yet
+  if(!appData[l].contacts) appData[l].contacts=[];
+  const cVendors=new Set(appData[l].contacts.map(c=>c.vendor));
+  VENDOR_ORDER.forEach((v,i)=>{
+    if(!cVendors.has(v)){
+      appData[l].contacts.push({id:`${l}_c_${i}`,vendor:v,
+        repName:'',phone:v==='Pepsi'?PEPSI_CONTACT.phone:'',
+        email:v==='Pepsi'?PEPSI_CONTACT.email:'',
+        notes:v==='Pepsi'?PEPSI_CONTACT.notes:''});
+    }
+  });
+
+  // Logins: same — only add if vendor has no row
+  if(!appData[l].logins) appData[l].logins=[];
+  const lVendors=new Set(appData[l].logins.map(x=>x.vendor));
+  VENDOR_ORDER.forEach((v,i)=>{
+    if(!lVendors.has(v)){
+      appData[l].logins.push({id:`${l}_pw_${i}`,vendor:v,
+        website:'',username:'',password:v==='Pepsi'?PEPSI_LOGIN.password:''});
+    }
+  });
+
+  // Schedules: same
+  if(!appData[l].schedules) appData[l].schedules=[];
+  const sVendors=new Set(appData[l].schedules.map(s=>s.vendor));
+  VENDOR_ORDER.forEach((v,i)=>{
+    if(!sVendors.has(v)){
+      const def=DEFAULT_SCHEDULES.find(d=>d.vendor===v)||{};
+      appData[l].schedules.push({id:`${l}_sched_${i}`,vendor:v,
+        orderDays:def.orderDays||'',deliveryDays:def.deliveryDays||'',
+        cutoffTime:def.cutoffTime||'',minOrder:def.minOrder||'',notes:def.notes||''});
+    }
+  });
+
+  // Preserve collapsed state
+  if(!appData[l]._collapsed) appData[l]._collapsed={};
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
